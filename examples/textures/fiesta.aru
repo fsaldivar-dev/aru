@@ -1,0 +1,29 @@
+// Fiesta — confeti y serpentinas (ARU)
+canvas 1500 2100
+background #FFF6EC
+gradient bg linear 90 { stop 0 #FFF3E2; stop 1 #FFE6EF }
+gradient clear radial 0.5 0.5 0.5 {
+    stop 0 #FFFDF8 0.9
+    stop 0.6 #FFFDF8 0.7
+    stop 1 #FFFDF8 0
+}
+rect base { at 750 1050; size 1500 2100; fill bg; layer background }
+
+define streamer {
+    path { move -130 0; curve -95 -45 -60 45 -25 0; curve 10 -45 45 45 80 0; curve 105 -32 120 -10 130 0; fill none; cap round }
+}
+define star5 { polygon { points 0.0 -12.0 2.9 -4.0 11.4 -3.7 4.8 1.5 7.1 9.7 0.0 5.0 -7.1 9.7 -4.8 1.5 -11.4 -3.7 -2.9 -4.0 } }
+
+group streamers {
+    layer mid
+    repeat 18 {
+        clone streamer { at rand(11,-50,1550) rand(12,-50,2150); rotate rand(13,0,360); scale rand(14,0.7,1.4); stroke pick(15, #FF5E7E, #FFB547, #4CC9F0, #7B61FF, #2EC4B6) 9; opacity 0.9 }
+    }
+}
+group confetti {
+    layer mid
+    repeat 280 { rect { at rand(21,0,1500) rand(22,0,2100); size rand(23,12,24) rand(24,6,11); corner 2; rotate rand(25,0,180); fill pick(26, #FF5E7E, #FFB547, #4CC9F0, #7B61FF, #2EC4B6, #FFD23F) } }
+    repeat 150 { circle { at rand(31,0,1500) rand(32,0,2100); radius rand(33,4,9); fill pick(34, #FF5E7E, #FFB547, #4CC9F0, #7B61FF, #2EC4B6, #FFD23F) } }
+    repeat 40 { clone star5 { at rand(41,0,1500) rand(42,0,2100); rotate rand(43,0,72); scale rand(44,0.8,1.6); fill pick(45, #FFB547, #FFD23F, #FF5E7E) } }
+}
+ellipse textArea { at 750 1050; size 1100 1300; fill clear; layer near; semantic layout.textArea }

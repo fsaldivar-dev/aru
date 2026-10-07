@@ -1,0 +1,122 @@
+[
+ {
+  "path": "examples/basic.aru",
+  "group": "ejemplos",
+  "name": "basic"
+ },
+ {
+  "path": "examples/cat-on-rock.aru",
+  "group": "ejemplos",
+  "name": "cat on rock"
+ },
+ {
+  "path": "examples/editar-trazos.aru",
+  "group": "ejemplos",
+  "name": "editar trazos"
+ },
+ {
+  "path": "examples/features.aru",
+  "group": "ejemplos",
+  "name": "features"
+ },
+ {
+  "path": "examples/flat-city.aru",
+  "group": "ejemplos",
+  "name": "flat city"
+ },
+ {
+  "path": "examples/icons.aru",
+  "group": "ejemplos",
+  "name": "icons"
+ },
+ {
+  "path": "examples/logos/hombres-maltratados-fc.aru",
+  "group": "logos",
+  "name": "hombres maltratados fc"
+ },
+ {
+  "path": "examples/logos/sajaru-box.aru",
+  "group": "logos",
+  "name": "sajaru box"
+ },
+ {
+  "path": "examples/logos/sajaru-soccer.aru",
+  "group": "logos",
+  "name": "sajaru soccer"
+ },
+ {
+  "path": "examples/logos/sonus.aru",
+  "group": "logos",
+  "name": "sonus"
+ },
+ {
+  "path": "examples/logos/taroci.aru",
+  "group": "logos",
+  "name": "taroci"
+ },
+ {
+  "path": "examples/mountains-generated.aru",
+  "group": "ejemplos",
+  "name": "mountains generated"
+ },
+ {
+  "path": "examples/sajaru-base-editable.aru",
+  "group": "ejemplos",
+  "name": "sajaru base editable"
+ },
+ {
+  "path": "examples/scatter-tree.aru",
+  "group": "ejemplos",
+  "name": "scatter tree"
+ },
+ {
+  "path": "examples/textures/18-anos.aru",
+  "group": "textures",
+  "name": "18 anos"
+ },
+ {
+  "path": "examples/textures/bautizo.aru",
+  "group": "textures",
+  "name": "bautizo"
+ },
+ {
+  "path": "examples/textures/despedida.aru",
+  "group": "textures",
+  "name": "despedida"
+ },
+ {
+  "path": "examples/textures/fiesta.aru",
+  "group": "textures",
+  "name": "fiesta"
+ },
+ {
+  "path": "examples/textures/halloween.aru",
+  "group": "textures",
+  "name": "halloween"
+ },
+ {
+  "path": "examples/textures/navidad.aru",
+  "group": "textures",
+  "name": "navidad"
+ },
+ {
+  "path": "examples/textures/xv-anos.aru",
+  "group": "textures",
+  "name": "xv anos"
+ },
+ {
+  "path": "examples/wedding-texture.aru",
+  "group": "ejemplos",
+  "name": "wedding texture"
+ },
+ {
+  "path": "examples/wolf-blueprint.aru",
+  "group": "ejemplos",
+  "name": "wolf blueprint"
+ },
+ {
+  "path": "examples/wolf.aru",
+  "group": "ejemplos",
+  "name": "wolf"
+ }
+]

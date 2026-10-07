@@ -1,0 +1,28 @@
+// Sajaru Box — logo (ARU). Bloque + monograma S inclinado + wordmark condensado.
+// dark-variant #111111>#F4F4F4
+canvas 1200 1200
+background none
+
+define monogramS { polygon { points -45.0 -150 127.0 -150 111.5 -64 55.5 -64 60.9 -94 -27.1 -94 -39.0 -28 105.0 -28 78.0 122 45.0 150 -127.0 150 -111.5 64 -55.5 64 -60.9 94 27.1 94 39.0 28 -105.0 28 -78.0 -122 } }
+
+group emblem {
+    at 600 420
+    semantic brand.sajaru.emblem
+    rect box { size 440 440; corner 40; fill #111111 }
+    rect inner { size 396 396; corner 28; fill none; stroke #FF5A1F 6 }
+    clone monogramS mark { scale 1.05; fill #FF5A1F }
+    // corner ticks: the "box" corners
+    repeat 4 c {
+        group {
+            rotate c*90
+            path { move -246 -190; line -246 -246; line -190 -246; fill none; stroke #111111 8; cap square }
+        }
+    }
+}
+group wordmark {
+    text name { at 600 790; content "SAJARU"; font "Avenir Next Condensed"; weight 800; size 200; spacing 16; fill #111111 }
+    line { from 250 965; to 430 965; stroke #111111 6 }
+    line { from 770 965; to 950 965; stroke #111111 6 }
+    rect tagBox { at 600 965; size 300 96; corner 8; fill #FF5A1F }
+    text tag { at 615 968; content "BOX"; font "Avenir Next Condensed"; weight 800; size 82; spacing 30; fill #FFFFFF }
+}

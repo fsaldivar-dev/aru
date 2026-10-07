@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARU Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#1e1f24; --panel:#26272e; --border:#3a3b45; --fg:#e6e6ea; --muted:#9a9ba6; --accent:#f6c453; --err:#ff6b6b; --warn:#f0a846; --ok:#7ed49a; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  body { display:grid; grid-template-rows:40px 1fr 260px; grid-template-columns: 1fr 1.3fr; height:100vh; }
+  header { grid-column:1/3; display:flex; align-items:center; gap:12px; padding:0 12px; overflow:hidden; white-space:nowrap; border-bottom:1px solid var(--border); background:var(--panel); }
+  header h1 { font-size:14px; margin:0 12px 0 0; font-weight:600; }
+  header select, header button { background:#33343d; color:var(--fg); border:1px solid var(--border); border-radius:4px; padding:4px 8px; font-size:12px; cursor:pointer; }
+  header .status { margin-left:auto; color:var(--muted); font-family: ui-monospace, Menlo, monospace; font-size:12px; }
+  #editorPane { display:flex; flex-direction:column; border-right:1px solid var(--border); min-height:0; }
+  #editor { flex:1; width:100%; resize:none; border:0; outline:0; background:#1b1c21; color:#dcdcdc; font:12.5px/1.45 ui-monospace, Menlo, Consolas, monospace; padding:10px; tab-size:4; white-space:pre; overflow:auto; }
+  #errors { max-height:120px; overflow:auto; border-top:1px solid var(--border); padding:6px 10px; font-family: ui-monospace, Menlo, monospace; font-size:12px; }
+  #errors .err { color:var(--err); } #errors .warn { color:var(--warn); } #errors .ok { color:var(--ok); }
+  #errors .err, #errors .warn { cursor:pointer; }
+  #canvasPane { display:flex; align-items:center; justify-content:center; overflow:auto; background:#131417; padding:12px; min-height:0; }
+  #canvasPane svg { max-width:100%; max-height:100%; height:auto; background:#fff; box-shadow:0 0 0 1px #000, 0 10px 40px rgba(0,0,0,.6); }
+  #canvasPane svg [data-aru] { cursor:pointer; }
+  #bottom { grid-column:1/3; display:grid; grid-template-columns: minmax(300px,1.2fr) minmax(220px,1fr) minmax(250px,1fr) minmax(300px,1.1fr); border-top:1px solid var(--border); min-height:0; overflow-x:auto; }
+  #bottom > section { border-right:1px solid var(--border); display:flex; flex-direction:column; min-height:0; }
+  #bottom > section:last-child { border-right:0; }
+  #bottom h2 { margin:0; padding:6px 10px; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); background:var(--panel); border-bottom:1px solid var(--border); display:flex; gap:8px; align-items:center; }
+  #bottom h2 .right { margin-left:auto; font-weight:normal; text-transform:none; letter-spacing:0; }
+  .body { overflow:auto; padding:6px 10px; flex:1; font-family: ui-monospace, Menlo, monospace; font-size:12px; }
+  #tree ul { list-style:none; margin:0; padding-left:14px; } #tree > ul { padding-left:0; }
+  #tree li > .row { display:flex; gap:6px; padding:1px 4px; border-radius:3px; cursor:pointer; white-space:nowrap; align-items:center; }
+  #tree li > .row:hover { background:#33343d; }
+  #tree li > .row.selected { background:#4a3f16; color:var(--accent); }
+  #tree .type { color:var(--muted); } #tree .sem { color:#8ab4f8; } #tree .gen { color:var(--muted); font-style:italic; }
+  #tree .swatch { width:10px; height:10px; border-radius:2px; border:1px solid #0006; display:inline-block; flex:none; }
+  #tree .toggle { width:12px; display:inline-block; color:var(--muted); flex:none; }
+  table { border-collapse:collapse; width:100%; } td, th { padding:2px 6px; text-align:left; border-bottom:1px solid #2f3038; vertical-align:top; } th { color:var(--muted); font-weight:normal; } td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  #inspector dl { display:grid; grid-template-columns:auto 1fr; gap:2px 10px; margin:0; } #inspector dt { color:var(--muted); } #inspector dd { margin:0; word-break:break-all; }
+  #ops textarea { width:100%; height:70px; background:#1b1c21; color:#dcdcdc; border:1px solid var(--border); border-radius:4px; font:12px ui-monospace, Menlo, monospace; padding:6px; resize:vertical; }
+  #ops button, #inspector button { background:#33343d; color:var(--fg); border:1px solid var(--border); border-radius:4px; padding:3px 8px; cursor:pointer; font-size:12px; margin-top:4px; }
+  #opsResult { margin-top:4px; color:var(--muted); min-height:1.4em; }
+  #opsResult.ok { color:var(--ok); } #opsResult.err { color:var(--err); }
+  .hint { color:var(--muted); font-size:11px; }
+  .seg { display:inline-flex; border:1px solid var(--border); border-radius:4px; overflow:hidden; }
+  .seg button { border:0 !important; border-radius:0 !important; border-right:1px solid var(--border) !important; }
+  .seg button:last-child { border-right:0 !important; }
+  .seg button.on { background:#5a4a16 !important; color:var(--accent) !important; }
+  #compiled { flex:1; width:100%; resize:none; border:0; outline:0; background:#15161a; color:#9fb3c8; font:11.5px/1.4 ui-monospace, Menlo, monospace; padding:10px; white-space:pre; overflow:auto; display:none; }
+  #editorPane.show-compiled #editor { display:none; } #editorPane.show-compiled #compiled { display:block; }
+  .tabs { display:flex; gap:2px; margin-left:8px; } .tabs button { background:transparent; color:var(--muted); border:0; font:inherit; letter-spacing:inherit; text-transform:inherit; cursor:pointer; padding:0 6px; }
+  .tabs button.on { color:var(--accent); }
+  #tree .kind { color:#c4a7ff; } #tree .lm { color:#fde047; } #tree .mir { color:#ff9ff0; font-style:italic; }
+  #canvasHost.dim svg > :not(.aru-debug):not(defs) { opacity:.3; }
+  #canvasHost.wire svg :is(path,polygon,circle,ellipse,rect,line) { fill:none !important; stroke:#38bdf8 !important; stroke-width:.7px !important; vector-effect:non-scaling-stroke; }
+  #canvasHost.wire svg g { opacity:1 !important; }
+  #canvasHost.wire svg { background:#0b1020 !important; }
+  .depbtn { margin:2px 2px 0 0; }
+  #tracerPane { display:none; overflow:auto; padding:10px; flex:1; }
+  #tracerPane .tl { display:block; margin:0 0 12px; }
+  #tracerPane input[type=range] { width:100%; }
+  #tracerPane select, #tracerPane button { background:#33343d; color:var(--fg); border:1px solid var(--border); border-radius:4px; padding:4px 8px; font-size:12px; cursor:pointer; }
+  #tracerPane .seg { flex-wrap:wrap; margin-top:4px; }
+  body.tracer #editor, body.tracer #compiled, body.tracer #errors, body.tracer #canvasHost, body.tracer #modes, body.tracer #views, body.tracer label:has(#examples), body.tracer #btnCompare, body.tracer label:has(#chkGenerated), body.tracer .tabs { display:none !important; }
+  body.tracer #tracerPane { display:block; }
+  #traceView { display:none; width:100%; height:100%; gap:10px; align-items:flex-start; justify-content:center; }
+  body.tracer #traceView { display:flex; }
+  #canvasPane:has(#traceView) { align-items:flex-start; }
+  .tv { flex:1; min-width:0; max-width:50%; }
+  .tvh { color:var(--muted); font-size:11px; letter-spacing:.08em; text-transform:uppercase; margin-bottom:4px; }
+  .tvb { position:relative; background:#000; box-shadow:0 0 0 1px #000, 0 6px 24px rgba(0,0,0,.5); line-height:0; }
+  .tvb canvas, .tvb > svg { width:100%; height:auto; display:block; image-rendering:pixelated; }
+  .tvb svg.ov { position:absolute; inset:0; width:100%; height:100%; background:transparent !important; box-shadow:none !important; max-height:none !important; }
+  .tvb svg .trsel { stroke:#ff2d95 !important; stroke-width:2px; vector-effect:non-scaling-stroke; }
+  .aru-highlight { fill:none; stroke:#ff3b8d; stroke-width:2; stroke-dasharray:6 4; vector-effect:non-scaling-stroke; pointer-events:none; }
+  .aru-highlight-fill { fill:#ff3b8d; fill-opacity:.12; pointer-events:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ARU Lab</h1> <a href="index.html" style="color:#a78bfa;font-size:12px;text-decoration:none">← Studio</a>
+  <label>Example <select id="examples"></select></label>
+  <button id="btnExport">Export SVG</button>
+  <button id="btnCompare">Compare ARU vs SVG</button>
+  <span class="seg" id="apps"><button data-app="editor" class="on">Editor</button><button data-app="tracer">Tracer</button></span>
+  <span class="seg" id="modes"><button data-mode="final" class="on">Final</button><button data-mode="blueprint">Blueprint</button><button data-mode="regions">Regions</button><button data-mode="landmarks">Landmarks</button><button data-mode="geometry">Geometry</button></span>
+  <span class="seg" id="views"><button data-view="source" class="on">Source</button><button data-view="compiled">Compiled geometry</button></span>
+  <label><input type="checkbox" id="chkGenerated"> generated in tree</label>
+  <span class="status" id="status"></span>
+</header>
+<div id="editorPane">
+  <textarea id="editor" spellcheck="false"></textarea>
+  <textarea id="compiled" readonly spellcheck="false"></textarea>
+  <div id="tracerPane"></div>
+  <div id="errors"></div>
+</div>
+<div id="canvasPane"><div id="canvasHost"></div>
+  <div id="traceView"><div class="tv"><div class="tvh">Reference (original)</div><div class="tvb" id="tvRef"></div></div><div class="tv"><div class="tvh" id="tvStageName">Final</div><div class="tvb" id="tvStage"></div></div></div>
+</div>
+<div id="bottom">
+  <section><h2>Scene graph <span class="tabs"><button data-tab="semantic">Semantic</button><button data-tab="geometry">Generated geometry</button></span><span class="right hint">click = select</span></h2><div class="body" id="tree"></div></section>
+  <section><h2>Inspector</h2><div class="body" id="inspector"><span class="hint">Select an object.</span></div></section>
+  <section><h2>Operations (future LLM interface)</h2><div class="body" id="ops">
+    <textarea id="opsInput">{ "operation": "set", "target": "cat.leftEye", "property": "fill", "value": "#5bd36b" }</textarea>
+    <button id="btnApplyOp">Apply operation</button>
+    <div id="opsResult"></div>
+    <div class="hint">operations: set · scale · translate · rotate · delete. targets: path (cat.tail), semantic:plant.tree, role:background, *</div>
+  </div></section>
+  <section><h2>Metrics <span class="right hint" id="metricsHint"></span></h2><div class="body" id="metrics"></div></section>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

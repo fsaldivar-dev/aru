@@ -1,0 +1,165 @@
+// Wolf head — ARU Semantic. No hand-written paths: landmarks + regions + procedural operations.
+canvas 560 560
+background #3E4A54
+
+// ---------- backdrop (plain ARU geometry) ----------
+gradient sunDisc linear 90 { stop 0 #F0A04B; stop 1 #D4642A }
+rect band { at 280 40; size 560 80; fill #A9542C; layer background }
+circle sun { at 280 292; radius 236; fill sunDisc; layer background }
+
+// ---------- the wolf ----------
+blueprint wolf {
+    at 30 12
+    size 500 540
+    seed 42
+    light top-left
+    symmetry vertical soft
+
+    palette {
+        base     #EEF2ED
+        warm     #E9D7B8
+        shadow1  #91C6CF
+        shadow2  #74727A
+        dark     #172641
+        eye      #F39A25
+    }
+
+    landmarks {
+        crown    0.50 0.15
+        earTipL  0.20 0.01
+        earOutL  0.10 0.33
+        earInL   0.38 0.17
+        templeL  0.12 0.42
+        browL    0.33 0.35
+        brow     0.50 0.33
+        eyeL     0.36 0.45
+        cheekL   0.05 0.60
+        bridgeL  0.44 0.50
+        muzzleL  0.40 0.66
+        nose     0.50 0.67
+        lipL     0.43 0.76
+        mouth    0.50 0.78
+        chin     0.50 0.86
+        jawL     0.20 0.77
+        neckL    0.24 0.97
+        throat   0.50 1.06
+        shoulderL 0.00 0.86
+    }
+
+    region shoulderL {
+        anchors [shoulderL pt(0.30, 0.80) pt(0.42, 1.08) pt(-0.05, 1.08)]
+        interpolation angular
+        fill dark
+        planes { count 3; palette [shade(dark, 0.18) dark] }
+    }
+
+    region head {
+        anchors [crown earInL earOutL templeL cheekL jawL neckL throat neckR jawR cheekR templeR earOutR earInR]
+        sharp [throat]
+        fill shadow1
+        planes { mode fan; focus nose; count 10; palette [base shadow1 shadow1 shadow2] }
+        edge { between templeL neckL; sides both; spikes 9; length 0.05..0.11; layers 2; colors [base] }
+    }
+
+    region neck {
+        anchors [jawL chin jawR neckR throat neckL]
+        fill shadow1
+        planes { mode fan; focus chin; count 9; palette [base shadow1 shadow2]; contrast 0.8 }
+        fur { density 0.45; length 0.05..0.1; colors [shade(shadow1, 0.3) shade(shadow2, -0.15)]; layers 2 }
+    }
+
+    group ears {
+        region earL {
+            anchors [earTipL earOutL earInL]
+            interpolation angular
+            fill base
+            planes { count 3; palette [base shadow1] }
+        }
+        region earInnerL {
+            from earL
+            scale 0.62
+            pivot mid(earOutL, earInL)
+            fill dark
+            planes { count 2; palette [dark shadow2] }
+            fur { direction up; colors [base]; density 0.5; length 0.03..0.06; layers 1 }
+        }
+    }
+
+    group face {
+        region forehead {
+            anchors [crown earInL browL brow browR earInR]
+            fill base
+            planes { count 4; palette [base base warm] }
+            edge { between earInR earInL; spikes 7; length 0.02..0.05; variation 0.6; flow up; lean 0.2 }
+            fur { direction up; density 0.4; length 0.03..0.06; colors [base warm] }
+        }
+        region cheekL {
+            anchors [templeL cheekL jawL muzzleL bridgeL eyeL browL]
+            fill shadow1
+            planes { mode fan; focus eyeL; count 6; palette [base shadow1 shadow2]; contrast 0.7 }
+            edge { between templeL jawL; spikes 6; length 0.05..0.1 }
+            fur { direction outward; density 0.35; length 0.06..0.12; width 0.18; colors [base]; layers 1 }
+        }
+        region muzzle {
+            anchors [brow bridgeL muzzleL lipL mouth lipR muzzleR bridgeR]
+            fill base
+            planes { count 4; palette [base base warm shadow1] }
+        }
+        region jawL {
+            anchors [jawL muzzleL lipL chin]
+            interpolation angular
+            fill base
+            planes { mode fan; focus lipL; count 3; palette [base shadow1] }
+        }
+        region chin {
+            anchors [lipL mouth lipR chin]
+            fill warm
+            planes { count 2; palette [base warm] }
+        }
+    }
+
+    group eyes {
+        contour markL {
+            through [bridgeL eyeL mid(eyeL, templeL, 0.75)]
+            width 0.035..0.004
+            fill dark
+        }
+        spot eyeL {
+            at eyeL
+            size 0.12 0.055
+            angle 12
+            shape almond
+            ring dark 1
+            ring eye 0.84
+            ring dark 0.5 circle
+            ring #FFFFFF 0.16 circle -0.12 -0.18
+        }
+    }
+
+    group snout {
+        spot nose {
+            at nose
+            size 0.13 0.075
+            shape triangle
+            ring dark 1
+            ring shadow2 0.4 round 0 -0.22
+        }
+        contour mouthLine {
+            through [lipL mouth lipR]
+            width 0.012..0.012
+            fill dark
+        }
+        contour philtrum {
+            through [nose mouth]
+            width 0.01..0.006
+            fill dark
+        }
+    }
+
+    mirror shoulderL earL earInnerL cheekL jawL markL eyeL
+
+    // soft symmetry: the shadow side keeps the mirrored structure but takes warmer planes
+    tweak cheekR {
+        planes { mode fan; focus eyeR; count 6; palette [warm shadow1 shadow2]; contrast 0.6 }
+    }
+}

@@ -1,0 +1,89 @@
+// Wedding card texture — ivory embossed damask, written in ARU (original artwork, no stock assets)
+// 1500 x 2100 = 5x7 in @ 300 dpi, portrait. The centre is kept softer for the card text.
+canvas 1500 2100
+background #F6F1E8
+
+gradient paper radial 0.5 0.45 0.75 {
+    stop 0 #FBF8F2
+    stop 0.6 #F6F1E8
+    stop 1 #EDE4D5
+}
+gradient clearing radial 0.5 0.5 0.5 {
+    stop 0 #FBF8F2 0.92
+    stop 0.55 #FBF8F2 0.75
+    stop 1 #FBF8F2 0
+}
+
+rect paperBase { at 750 1050; size 1500 2100; fill paper; layer background }
+
+// ---------- one half of the damask ornament (mirrored to make it symmetric) ----------
+define half {
+    // upper scroll curling outward
+    path scrollTop { move 0 -40; curve 30 -60 70 -70 78 -100; curve 84 -124 60 -136 48 -120; curve 40 -108 52 -96 62 -104; fill none; cap round }
+    // small rising leaf beside the bud
+    path budLeaf { move 4 -70; curve 22 -86 30 -108 26 -128; curve 12 -112 6 -92 4 -70; close }
+    // S-shaped side leaf
+    path leaf { move 6 50; curve 30 40 64 52 84 80; curve 90 90 92 100 90 112; curve 64 104 32 86 6 50; close }
+    path leafVein { move 12 54; curve 40 60 66 78 84 104; fill none; cap round }
+    // lower scroll
+    path scrollLow { move 0 76; curve 36 82 70 104 64 134; curve 60 154 36 156 34 140; curve 32 128 46 124 50 134; fill none; cap round }
+    circle seed { at 96 -8; radius 4 }
+}
+
+define rosette {
+    repeat 5 p { group { rotate p*72; ellipse { at 0 -10; size 13 20 } } }
+    circle { radius 5 }
+}
+
+define ornament {
+    clone half right {}
+    clone half left { scale -1 1 }
+    // centre: tall bud, lily crown, stem, rosette and drop
+    path bud { move 0 -150; curve 20 -120 24 -84 0 -56; curve -24 -84 -20 -120 0 -150; close }
+    path crownL { move 0 -40; curve -30 -60 -40 -90 -26 -110; curve -18 -86 -8 -64 0 -40; close }
+    path crownR { move 0 -40; curve 30 -60 40 -90 26 -110; curve 18 -86 8 -64 0 -40; close }
+    path stem { move 0 -40; curve -6 0 6 60 0 150; fill none; cap round }
+    clone rosette { at 0 32 }
+    path drop { move 0 158; curve 10 172 8 186 0 192; curve -8 186 -10 172 0 158; close }
+    circle dotTop { at 0 -168; radius 5 }
+}
+
+// embossed look: a warm shadow copy, a white highlight copy, then the motif itself
+define embossed {
+    clone ornament shadow { at 2.2 2.6; fill #E2D6C2; stroke #E2D6C2 5 }
+    clone ornament light { at -1.6 -1.8; fill #FFFFFF; stroke #FFFFFF 5 }
+    clone ornament face { fill #EFE7DA; stroke #EFE7DA 5 }
+}
+
+group damask {
+    semantic pattern.damask
+    layer mid
+    opacity 0.9
+    // half-drop repeat: every other column shifted by half a cell
+    repeat 7 col {
+        repeat 7 row {
+            clone embossed { at -30+col*260 -40+row*400+(col%2)*200; scale 0.9 }
+        }
+    }
+}
+
+// fine lace dots between the motifs
+group lace {
+    layer mid
+    opacity 0.55
+    repeat 7 col {
+        repeat 7 row {
+            group {
+                at 100+col*260 60+row*400+(col%2)*200
+                circle { radius 4; fill #E6DCCB }
+                circle { at -1 -1; radius 2; fill #FFFFFF }
+                repeat 6 k { circle { at 16*cos(k*60) 16*sin(k*60); radius 2.2; fill #E9E0D0 } }
+            }
+        }
+    }
+}
+
+// soft clearing for the text area + gentle vignette frame
+ellipse textClearing { at 750 1050; size 1150 1500; fill clearing; layer near; semantic layout.textArea }
+rect frame { at 750 1050; size 1410 2010; corner 6; fill none; stroke #E4D7C0 3; layer foreground; semantic layout.frame }
+rect frameInner { at 750 1050; size 1380 1980; corner 4; fill none; stroke #EFE6D6 1.5; layer foreground }

@@ -1,0 +1,132 @@
+// Line-icon grid — style test against a neutral "aesthetic" icon sheet. Generic icons only (no brand logos).
+canvas 800 800
+background #FFFFFF
+
+define tile {
+    param bg #E3D9CB
+    rect { size 196 196; fill bg }
+}
+
+// every icon: white line art centred on 0 0, ~120 px
+define clock {
+    circle { radius 54 }
+    path { move 0 -32; line 0 0; line 24 20 }
+}
+define compose {
+    path { move 4 -42; line -42 -42; line -42 42; line 42 42; line 42 -4 }
+    group { at 14 -14; rotate 45; rect { size 16 74; corner 3 }; path { move -8 37; line 0 52; line 8 37 } }
+}
+define video {
+    rect { size 124 124; corner 28 }
+    rect { at -10 0; size 64 50; corner 10 }
+    path { move 22 -8; line 42 -22; line 42 22; line 22 8; close }
+}
+define pin {
+    param bg #E3D9CB
+    path { move 0 56; curve -18 30 -40 8 -40 -14; arc 40 40 0 0 1 40 -14; curve 40 8 18 30 0 56; close; fill #FFFFFF; stroke none }
+    circle { at 0 -14; radius 15; fill bg; stroke none }
+}
+define chat {
+    ellipse { at 0 -6; size 118 92 }
+    path { move -30 34; quad -32 50 -46 58; quad -22 56 -8 40 }
+}
+define calendar {
+    rect { at 0 6; size 104 92; corner 10 }
+    line { from -52 -18; to 52 -18 }
+    line { from -26 -48; to -26 -30 }
+    line { from 26 -48; to 26 -30 }
+    group {
+        fill #FFFFFF
+        stroke none
+        repeat 3 r { repeat 5 c { rect { at -36+c*18 4+r*16; size 10 9 } } }
+    }
+}
+define phone {
+    path { move -36 -46; curve -54 -30 -42 4 -14 30; curve 12 54 42 58 50 42; line 42 26; line 22 22; line 12 32; curve -2 24 -16 10 -24 -6; line -14 -18; line -18 -38; close }
+}
+define camera {
+    rect { at 0 8; size 124 86; corner 14 }
+    path { move -26 -35; line -16 -48; line 16 -48; line 26 -35 }
+    circle { at 0 10; radius 27 }
+    circle { at 42 -18; radius 4; fill #FFFFFF; stroke none }
+}
+define heart {
+    path { move 0 44; curve -64 2 -54 -52 -18 -48; curve -6 -46 0 -36 0 -28; curve 0 -36 6 -46 18 -48; curve 54 -52 64 2 0 44; close }
+}
+define home {
+    polygon { points 0 -52 -56 0 -38 0 -38 48 -12 48 -12 20 12 20 12 48 38 48 38 0 56 0; fill #FFFFFF; stroke none }
+}
+define music {
+    group {
+        fill #FFFFFF
+        stroke none
+        ellipse { at -30 36; rotate -20; size 34 24 }
+        ellipse { at 32 26; rotate -20; size 34 24 }
+        rect { at -15 -6; size 7 82 }
+        rect { at 47 -16; size 7 82 }
+        polygon { points -18 -46 50 -58 50 -42 -18 -30 }
+    }
+}
+define gear {
+    param bg #E3D9CB
+    group {
+        fill #FFFFFF
+        stroke none
+        circle { radius 42 }
+        repeat 8 { group { rotate i*45; rect { at 0 -46; size 20 22; corner 3 } } }
+    }
+    circle { radius 17; fill bg; stroke none }
+}
+define mail {
+    rect { size 116 80; corner 8 }
+    path { move -52 -34; line 0 6; line 52 -34 }
+}
+define coffee {
+    path { move -40 -8; line 30 -8; line 26 30; curve 22 44 -32 44 -36 30; close }
+    path { move 28 2; curve 54 2 52 28 24 28 }
+    line { from -58 54; to 48 54 }
+    repeat 3 { path { move -22+i*16 -22; quad -28+i*16 -32 -22+i*16 -42; quad -16+i*16 -52 -22+i*16 -60 } }
+}
+define weather {
+    param bg #E3D9CB
+    circle { at -16 -18; radius 22 }
+    repeat 7 { group { at -16 -18; rotate 135+i*30; line { from 0 -32; to 0 -44 } } }
+    path { move -40 42; curve -62 42 -62 12 -38 12; curve -36 -8 -6 -14 6 4; curve 24 -6 48 6 46 22; curve 62 24 62 42 46 42; close; fill bg }
+}
+define bank {
+    polygon { points 0 -52 -58 -22 58 -22 }
+    circle { at 0 -34; radius 6 }
+    repeat 5 { line { from -40+i*20 -12; to -40+i*20 32 } }
+    line { from -56 42; to 56 42 }
+    line { from -50 32; to 50 32 }
+}
+
+group sheet {
+    // tiles: three neutral tones in a checker-like rhythm
+    repeat 16 {
+        clone tile { at 100+(i%4)*200 100+floor(i/4)*200; bg cycle(i+floor(i/4), #E3D9CB, #D1C0A8, #9E9384) }
+    }
+    group icons {
+        semantic icon
+        stroke #FFFFFF 8
+        fill none
+        cap round
+        join round
+        clone clock    { at 100 100 }
+        clone compose  { at 300 100 }
+        clone video    { at 500 100 }
+        clone pin      { at 700 100; bg #E3D9CB }
+        clone chat     { at 100 300 }
+        clone calendar { at 300 300 }
+        clone phone    { at 500 300 }
+        clone camera   { at 700 300 }
+        clone heart    { at 100 500 }
+        clone home     { at 300 500 }
+        clone music    { at 500 500 }
+        clone gear     { at 700 500; bg #D1C0A8 }
+        clone mail     { at 100 700 }
+        clone coffee   { at 300 700 }
+        clone weather  { at 500 700; bg #9E9384 }
+        clone bank     { at 700 700 }
+    }
+}

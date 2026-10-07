@@ -1,0 +1,47 @@
+// XV años — rosa empolvado, mariposas y destellos dorados (ARU)
+canvas 1500 2100
+background #F8DCE4
+gradient blush linear 120 { stop 0 #FBE9EE; stop 0.55 #F6D3DD; stop 1 #ECB6C6 }
+gradient gold linear 135 { stop 0 #B8862C; stop 0.45 #F6E3A1; stop 0.7 #D4A74E; stop 1 #9C6F22 }
+gradient bokehG radial 0.5 0.5 0.5 { stop 0 #FFFFFF 0.6; stop 1 #FFFFFF 0 }
+gradient clear radial 0.5 0.5 0.5 {
+    stop 0 #FFF6F8 0.85
+    stop 0.6 #FFF6F8 0.55
+    stop 1 #FFF6F8 0
+}
+rect base { at 750 1050; size 1500 2100; fill blush; layer background }
+
+define butterfly {
+    // forewings: large and rounded; hindwings: smaller, lower; inner panels give the wing pattern
+    path foreR { move 2 -4; curve 14 -52 70 -78 86 -46; curve 96 -24 72 -2 2 -4; close }
+    path hindR { move 2 2; curve 34 0 64 18 58 44; curve 52 62 24 58 2 2; close }
+    path foreInR { move 10 -10; curve 22 -44 62 -60 72 -40; curve 78 -26 60 -12 10 -10; close; fill #FFF3D6; opacity 0.55; stroke none }
+    path hindInR { move 10 6; curve 32 8 50 20 46 38; curve 40 48 24 44 10 6; close; fill #FFF3D6; opacity 0.5; stroke none }
+    clone foreR foreL { scale -1 1 }
+    clone hindR hindL { scale -1 1 }
+    clone foreInR foreInL { scale -1 1 }
+    clone hindInR hindInL { scale -1 1 }
+    ellipse body { at 0 4; size 7 46; fill #9C6F22 }
+    path antennae { move -2 -18; quad -8 -38 -18 -44; move 2 -18; quad 8 -38 18 -44; fill none; stroke #9C6F22 2 }
+}
+
+define sparkle { polygon { points 0 -14 3 -3 14 0 3 3 0 14 -3 3 -14 0 -3 -3 } }
+
+group bokeh {
+    layer far
+    repeat 30 { circle { at rand(41,0,1500) rand(42,0,2100); radius rand(43,40,160); fill bokehG; opacity rand(44,0.35,0.9) } }
+}
+group butterflies {
+    layer mid
+    repeat 18 {
+        clone butterfly { at rand(51,80,1420) pick(52, rand(53,90,600), rand(54,1500,2020)); rotate rand(55,-30,30); scale rand(56,0.5,1.1); fill gold; stroke #B8862C 1.5; opacity 0.85 }
+    }
+}
+group glitter {
+    layer mid
+    repeat 340 { circle { at rand(61,0,1500) pick(63, rand(62,0,700), rand(64,1400,2100), rand(65,0,2100)); radius rand(66,1.5,4.5); fill gold; opacity rand(67,0.55,1) } }
+    repeat 46 { clone sparkle { at rand(71,0,1500) pick(72, rand(73,0,650), rand(74,1450,2100)); scale rand(75,0.6,1.8); fill #FFF6D8; opacity rand(76,0.6,1) } }
+}
+ellipse textArea { at 750 1050; size 1150 1250; fill clear; layer near; semantic layout.textArea }
+rect frame { at 750 1050; size 1400 2000; corner 10; fill none; stroke gold 4; layer foreground }
+rect frameInner { at 750 1050; size 1370 1970; corner 8; fill none; stroke #E8C877 1.5; opacity 0.8; layer foreground }

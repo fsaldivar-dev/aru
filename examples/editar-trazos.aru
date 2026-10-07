@@ -1,0 +1,47 @@
+canvas 800 480
+background #F4F1EA
+
+group practica {
+    label "Práctica de edición de trazos"
+    text titulo { at 48 48; content "Una base que puedes transformar"; size 24; anchor start; fill #203329 }
+    group mejilla {
+        at 60 110
+        label "Mejilla · simplificar y suavizar"
+        semantic character.head.cheek
+        path contorno {
+            move 0 65
+            line 20 50
+            line 40 33
+            line 60 24
+            line 80 13
+            line 100 10
+            line 120 8
+            line 140 13
+            line 160 15
+            line 180 27
+            line 200 36
+            line 220 54
+            line 240 68
+            fill none
+            stroke #2F5148 4
+            cap round
+        }
+    }
+    group costura {
+        at 440 125
+        label "Contorno partido · juntar extremos"
+        semantic character.head.muzzle
+        path izquierda { label "Mitad izquierda"; move 0 50; curve 35 0 70 0 105 20; fill none; stroke #C8643A 4; cap round }
+        path derecha { label "Mitad derecha"; move 111 22; curve 135 35 155 50 180 55; fill none; stroke #C8643A 4; cap round }
+    }
+    group estrella {
+        at 100 300
+        label "Esquinas intencionales · conservar"
+        path forma { move 0 0; line 20 -40; line 40 0; line 80 0; line 50 25; line 60 65; line 20 40; line -20 65; line -10 25; line -40 0; close; fill #D68336 }
+    }
+    group anillo {
+        at 440 300
+        label "Contorno compuesto · conservar el hueco"
+        path forma { move 0 0; line 50 0; line 100 0; line 100 80; line 0 80; close; move 30 25; line 30 55; line 70 55; line 70 25; close; fill #2F5148 }
+    }
+}

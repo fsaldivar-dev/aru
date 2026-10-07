@@ -1,0 +1,49 @@
+// Navidad — copos de nieve sobre rojo, acebo y marco dorado (ARU)
+canvas 1500 2100
+background #7E141C
+gradient red linear 90 { stop 0 #A21E28; stop 1 #5C0D14 }
+gradient gold linear 135 { stop 0 #9C6F22; stop 0.45 #F2DC95; stop 0.7 #C9993E; stop 1 #8A6320 }
+gradient clear radial 0.5 0.5 0.5 {
+    stop 0 #B4262F 0.55
+    stop 0.6 #B4262F 0.3
+    stop 1 #B4262F 0
+}
+rect base { at 750 1050; size 1500 2100; fill red; layer background }
+define flake {
+    repeat 6 k {
+        group {
+            rotate k*60
+            line { from 0 0; to 0 -40 }
+            line { from 0 -18; to -10 -28 }
+            line { from 0 -18; to 10 -28 }
+            line { from 0 -30; to -7 -37 }
+            line { from 0 -30; to 7 -37 }
+        }
+    }
+    circle { radius 4; fill #FFFFFF; stroke none }
+}
+define holly {
+    path leafA { move 0 0; quad 14 -10 20 -26; quad 28 -20 36 -26; quad 36 -14 48 -10; quad 40 0 48 10; quad 34 12 30 24; quad 22 18 14 26; quad 8 12 0 0; close; fill #2F6B3A }
+    clone leafA leafB { rotate 110; fill #3B7D45 }
+    circle { at -2 -4; radius 9; fill #D11F2A }
+    circle { at 10 4; radius 9; fill #E02A35 }
+    circle { at -10 8; radius 9; fill #C21822 }
+}
+
+group snow {
+    layer far
+    repeat 280 { circle { at rand(21,0,1500) rand(22,0,2100); radius rand(23,1.5,4); fill #FFFFFF; opacity rand(24,0.25,0.8) } }
+}
+group flakes {
+    layer mid
+    stroke #FFFFFF 3
+    cap round
+    repeat 46 { clone flake { at rand(31,0,1500) rand(32,0,2100); rotate rand(33,0,60); scale rand(34,0.45,1.7); opacity rand(35,0.35,0.9) } }
+}
+ellipse textArea { at 750 1050; size 1150 1300; fill clear; layer near; semantic layout.textArea }
+group corners {
+    layer near
+    clone holly { at 160 170; rotate -20; scale 2.2 }
+    clone holly { at 1340 1930; rotate 160; scale 2.2 }
+}
+rect frame { at 750 1050; size 1400 2000; corner 12; fill none; stroke gold 5; layer foreground }

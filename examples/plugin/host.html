@@ -1,0 +1,37 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><title>ARU · componente embebido</title>
+<style>body{margin:0;background:#101518;color:#edf6f0;font:14px system-ui}header{padding:18px 24px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #304038}h1{font-size:18px;margin:0}span{color:#9aaeaa}button{background:#2d5145;border:1px solid #598773;border-radius:7px;padding:8px 14px;color:white;cursor:pointer}#editor{height:720px}#status{padding:12px 24px;color:#afdbbe;white-space:pre-wrap}#png{max-width:280px;margin:20px}pre{margin:20px;max-height:230px;overflow:auto;font-size:12px}</style>
+<header><h1>ARU en tu aplicación</h1><span>Documento y contexto controlados por el host</span><button id="context">Consultar contexto</button><button id="blue">Cambiar color</button><button id="undo">Deshacer</button><button id="pngButton">Ver PNG</button><button id="askButton">Pedir cambio a Claude</button><button id="lifecycle">Probar ciclo de vida</button></header>
+<div id="editor"></div><div id="status">Conectando…</div><img id="png" alt=""><pre id="contextOutput"></pre>
+<script type="module">
+import { mountEditor } from '../../plugin/index.js';
+const fixture = 'canvas 800 560\nbackground #F2F1E9\ngroup icono { at 270 260; label "Sajaru · base editable"; semantic icon.sajaru; rect fondo { at 0 0; size 260 260; corner 58; fill #285D48 } circle ojo { at 0 -20; radius 54; fill #D18A43 } path trazo { move -65 60; curve -20 20 20 100 70 40; stroke #FFFFFF 10; fill none; cap round } }\ntext titulo { at 400 475; content "Transforma una base en nuevas ilustraciones"; size 23; anchor middle; fill #285D48 }';
+const $ = id => document.getElementById(id), status = text => $('status').textContent = text;
+let count = 0, editor;
+const agents = {
+ detect: () => fetch('/api/agents', { headers: { 'x-aru-bridge': '1' } }).then(r => r.json()),
+ run: args => fetch('/api/agents/run', { method: 'POST', headers: { 'content-type': 'application/json', 'x-aru-bridge': '1' }, body: JSON.stringify(args) }).then(r => r.json()),
+ cancel: args => fetch('/api/agents/cancel', { method: 'POST', headers: { 'content-type': 'application/json', 'x-aru-bridge': '1' }, body: JSON.stringify(args) }).then(r => r.json()),
+};
+function mount(text = fixture) { return mountEditor($('editor'), { studioUrl: '../../index.html', text, name: 'Sajaru · plugin', agents, onChange: doc => { count++; status(`Host recibió el documento · revisión ${doc.revision} · ${count} cambios`); }, timeout: 120000 }); }
+editor = mount(); await editor.ready; status('Editor embebido listo · persistencia y agentes conectados por el host');
+for (const [id, fn] of Object.entries({
+ askButton: async () => { status('Claude consulta el contexto y el lienzo…'); const r = await editor.ask('Cambia únicamente el relleno de icono.ojo a #FFAA55; conserva las demás capas.', { provider: 'claude', review: 0, illustrator: false }); status('IA del componente: ' + r.report.text); },
+ context: async () => { const c = await editor.context(); $('contextOutput').textContent = JSON.stringify({ canvas: c.canvas, selection: c.selection, layers: c.layers, revision: c.revision, boundsMode: c.boundsMode }, null, 2); status(`Contexto consultado · ${c.layers.length} capas · revisión ${c.revision}`); },
+ blue: async () => { const c = await editor.context(); await editor.select(['icono.ojo']); const p = await editor.preview([{ op: 'set', target: 'selection', fill: '#408DE0' }]); if (!p.svg.includes('#408DE0')) throw new Error('Preview sin cambio'); await editor.apply([{ op: 'set', target: 'selection', fill: '#408DE0' }], { expectedRevision: c.revision }); status('Cambio por API aplicado · ojo azul · lote previsualizado'); },
+ undo: async () => { await editor.undo(); status('Deshacer por API completado'); },
+ pngButton: async () => { $('png').src = await editor.png(); status('PNG opaco generado desde el componente'); },
+ lifecycle: async () => {
+   await editor.load(fixture); const before = (await editor.getDocument()).text;
+   let rejected = false; try { await editor.load('incorrecto {'); } catch { rejected = true; }
+   if (!rejected || (await editor.getDocument()).text !== before) throw new Error('Carga inválida no protegida');
+   const old = await editor.context(); await editor.apply([{ op: 'set', target: 'icono.ojo', fill: '#408DE0' }]);
+   let stale = false; try { await editor.apply([{ op: 'delete', target: 'icono' }], { expectedRevision: old.revision }); } catch { stale = true; }
+   if (!stale) throw new Error('Revisión antigua aceptada');
+   await editor.undo(); await editor.redo(); await editor.load('canvas 800 560\nbackground #FFFFFF\n');
+   if ((await editor.context()).layers.length) throw new Error('Documento vacío no aceptado');
+   editor.destroy(); let dead = false; try { await editor.getDocument(); } catch { dead = true; } if (!dead) throw new Error('Editor destruido responde');
+   editor = mount(); await editor.ready;
+   status('Ciclo de vida OK · carga inválida conservada · revisión antigua rechazada · undo/redo · vacío · destroy · remount');
+ }
+})) $(id).onclick = () => fn().catch(e => status(`ERROR: ${e.message}`));
+</script></html>

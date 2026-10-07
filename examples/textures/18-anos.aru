@@ -1,0 +1,48 @@
+// 18 años — art déco dorado sobre azul noche (ARU)
+canvas 1500 2100
+background #0F1828
+gradient night linear 90 { stop 0 #0C1420; stop 1 #1B2A44 }
+gradient gold linear 135 { stop 0 #9C6F22; stop 0.45 #F2DC95; stop 0.7 #C9993E; stop 1 #8A6320 }
+gradient clear radial 0.5 0.5 0.5 {
+    stop 0 #0F1828 0.92
+    stop 0.6 #0F1828 0.75
+    stop 1 #0F1828 0
+}
+rect base { at 750 1050; size 1500 2100; fill night; layer background }
+define fan {
+    path { move -70 0; arc 70 70 0 0 1 70 0; close }
+    path { move -54 0; arc 54 54 0 0 1 54 0; fill none }
+    path { move -38 0; arc 38 38 0 0 1 38 0; fill none }
+    path { move -22 0; arc 22 22 0 0 1 22 0; fill none }
+    repeat 3 k { line { from 22*cos(225+k*45) 22*sin(225+k*45); to 70*cos(225+k*45) 70*sin(225+k*45) } }
+}
+define sparkle { polygon { points 0 -14 3 -3 14 0 3 3 0 14 -3 3 -14 0 -3 -3 } }
+
+group scales {
+    layer mid
+    opacity 0.32
+    fill #13203A
+    stroke #D8B25A 2
+    repeat 12 col { repeat 32 row { clone fan { at col*140+(row%2)*70 40+row*70 } } }
+}
+ellipse textArea { at 750 1050; size 1150 1500; fill clear; layer near; semantic layout.textArea }
+group glitter {
+    layer near
+    repeat 160 { circle { at rand(61,0,1500) pick(62, rand(63,0,600), rand(64,1500,2100)); radius rand(65,1.2,3.5); fill gold; opacity rand(66,0.5,1) } }
+    repeat 30 { clone sparkle { at rand(71,0,1500) pick(72, rand(73,0,600), rand(74,1500,2100)); scale rand(75,0.5,1.6); fill #F6E7B5 } }
+}
+group frame {
+    layer foreground
+    fill none
+    stroke gold 4
+    rect outer { at 750 1050; size 1380 1980 }
+    rect inner { at 750 1050; size 1340 1940; stroke #C9993E 1.5 }
+    repeat 4 c {
+        group {
+            at 750+(c%2*2-1)*690 1050+(floor(c/2)*2-1)*990
+            scale c%2*2-1 floor(c/2)*2-1
+            path step { move 0 60; line 30 60; line 30 30; line 60 30; line 60 0; fill none }
+            path step2 { move 0 90; line 50 90; line 50 50; line 90 50; line 90 0; fill none; stroke #C9993E 1.5 }
+        }
+    }
+}

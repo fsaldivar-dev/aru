@@ -1,0 +1,531 @@
+// Cat on a rock at sunset — written entirely in ARU (no SVG, no raster, no external assets)
+canvas 1000 700
+background #2E2A5E
+
+// ---------- palettes ----------
+gradient sky linear 90 {
+    stop 0 #2E2A5E
+    stop 0.35 #7A4B7D
+    stop 0.62 #E8794C
+    stop 0.85 #F6C06A
+    stop 1 #FBE3A0
+}
+gradient sunGlow radial 0.5 0.5 0.5 {
+    stop 0 #FFF2C0 0.9
+    stop 0.4 #FFC070 0.45
+    stop 1 #FF9A5A 0
+}
+gradient lake linear 90 {
+    stop 0 #E9A26E
+    stop 0.25 #9B7A7E
+    stop 0.6 #45628A
+    stop 1 #2A4466
+}
+gradient ground linear 90 {
+    stop 0 #6D7F3F
+    stop 0.5 #4A5A2C
+    stop 1 #2C3A1C
+}
+gradient rockFill linear 115 {
+    stop 0 #B2A596
+    stop 0.5 #7E7368
+    stop 1 #4D4540
+}
+gradient catFur radial 0.42 0.3 0.8 {
+    stop 0 #B5895F
+    stop 0.6 #8A6548
+    stop 1 #5E4330
+}
+gradient haze linear 90 {
+    stop 0 #F6C06A 0
+    stop 0.5 #F8C77A 0.45
+    stop 1 #F6C06A 0
+}
+gradient farRange linear 90 {
+    stop 0 #8E7AA8
+    stop 1 #5E4F80
+}
+gradient nearRange linear 90 {
+    stop 0 #5A4A78
+    stop 1 #3A3157
+}
+
+// ---------- sky ----------
+rect skyBox { at 500 350; size 1000 700; fill sky; layer background; semantic sky; role background }
+
+group sunset {
+    layer background
+    semantic sky.sun
+    role background
+    circle glow { at 610 292; radius 240; fill sunGlow; opacity 0.8 }
+    circle sun  { at 610 292; radius 58; fill #FFE49A }
+    circle core { at 610 292; radius 46; fill #FFF4CC; opacity 0.9 }
+}
+
+define cloud {
+    ellipse { at 0 0;    size 180 34; fill #F2A98F; opacity 0.85 }
+    ellipse { at -40 -14; size 90 36; fill #F6BCA0; opacity 0.9 }
+    ellipse { at 30 -12;  size 110 40; fill #F6BCA0; opacity 0.9 }
+    ellipse { at 10 8;    size 160 18; fill #C96F7A; opacity 0.5 }
+}
+group clouds {
+    layer background
+    semantic sky.cloud
+    role background
+    clone cloud { at 170 120; scale 1.1 }
+    clone cloud { at 420 85;  scale 0.7; opacity 0.8 }
+    clone cloud { at 860 150; scale 0.9 }
+    clone cloud { at 600 190; scale 0.5; opacity 0.6 }
+}
+
+group birds {
+    layer background
+    semantic animal.bird
+    repeat 5 {
+        path {
+            at 230+i*48+rand(1,-15,15) 150+rand(2,-40,40)
+            scale rand(3,0.5,1)
+            move -16 0
+            quad -8 -9 0 0
+            quad 8 -9 16 0
+            stroke #3A2E4A 2
+            cap round
+            fill none
+        }
+    }
+}
+
+// ---------- mountains ----------
+// lighting lives inside a group clipped to the silhouette, so light/shade shapes can be loose
+define snow {
+    path { move 0 0; line 26 22; quad 18 18 12 26; quad 6 16 -2 24; quad -8 14 -16 20; line -26 22; close }
+}
+group mountains {
+    layer far
+    semantic terrain.mountain
+    role background
+
+    group farRange {
+        clip far
+        path far {
+            move 0 330
+            quad 60 290 120 232
+            quad 160 270 210 300
+            quad 270 240 330 208
+            quad 390 262 430 296
+            quad 470 266 520 246
+            quad 560 290 610 312
+            quad 650 250 705 214
+            quad 760 262 800 300
+            quad 840 260 880 238
+            quad 940 290 1000 320
+            line 1000 400
+            line 0 400
+            close
+            fill farRange
+        }
+        // faces turned toward the sun (sun sits at x 610)
+        group litFaces {
+            fill #F2B9A6
+            opacity 0.45
+            path { move 120 232; line 210 300; line 190 380; curve 160 330 140 280 120 232; close }
+            path { move 330 208; line 430 296; line 410 380; curve 380 320 350 260 330 208; close }
+            path { move 520 246; line 610 312; line 560 380; curve 545 330 530 290 520 246; close }
+            path { move 705 214; line 610 312; line 640 380; curve 670 320 690 260 705 214; close }
+            path { move 880 238; line 800 300; line 820 380; curve 850 320 865 280 880 238; close }
+        }
+        group snowcaps {
+            fill #FBE6DA
+            opacity 0.85
+            clone snow { at 120 232; scale 0.8 }
+            clone snow { at 330 208 }
+            clone snow { at 705 214 }
+            clone snow { at 880 238; scale 0.7 }
+        }
+    }
+
+    group nearRange {
+        clip near
+        path near {
+            move 0 400
+            line 0 352
+            quad 70 320 150 300
+            quad 200 330 250 350
+            quad 310 310 380 290
+            quad 450 330 520 356
+            quad 600 320 680 330
+            quad 760 300 830 290
+            quad 900 330 1000 340
+            line 1000 400
+            close
+            fill nearRange
+        }
+        group shade {
+            fill #1E1A33
+            opacity 0.35
+            path { move 150 300; curve 130 330 110 360 100 400; line 0 400; line 0 300; close }
+            path { move 380 290; curve 360 330 340 370 330 400; line 250 400; line 250 300; close }
+            path { move 830 290; curve 850 330 880 370 900 400; line 1000 400; line 1000 300; close }
+        }
+        group rim {
+            fill none
+            stroke #F7B98A 2.5
+            opacity 0.6
+            cap round
+            path { move 380 290; quad 450 330 520 356 }
+            path { move 680 330; quad 760 300 830 290 }
+        }
+    }
+}
+
+// ---------- trees ----------
+define pine {
+    semantic plant.tree.pine
+    rect trunk { at 0 -16; size 10 36; fill #3E2A1F }
+    path tier1 { move 0 -72; curve 20 -42 36 -20 54 0;   quad 0 -9 -54 0;   curve -36 -20 -20 -42 0 -72; close }
+    path tier2 { move 0 -118; curve 16 -92 28 -72 42 -50; quad 0 -58 -42 -50; curve -28 -72 -16 -92 0 -118; close }
+    path tier3 { move 0 -162; curve 12 -140 22 -120 32 -100; quad 0 -106 -32 -100; curve -22 -120 -12 -140 0 -162; close }
+    path shade1 { move 0 -72; curve -20 -42 -36 -20 -54 0; quad -27 -5 0 -9; close; fill #000000; opacity 0.22 }
+    path shade2 { move 0 -118; curve -16 -92 -28 -72 -42 -50; quad -21 -54 0 -58; close; fill #000000; opacity 0.22 }
+    path shade3 { move 0 -162; curve -12 -140 -22 -120 -32 -100; quad -16 -103 0 -106; close; fill #000000; opacity 0.22 }
+    path light { move 0 -162; curve 12 -140 22 -120 32 -100; quad 20 -105 8 -108; curve 14 -125 8 -140 0 -150; close; fill #FFE4B0; opacity 0.18 }
+}
+
+define roundTree {
+    semantic plant.tree.deciduous
+    rect trunk { at 0 -28; size 16 64; fill #3E2A1F }
+    path branch { move -2 -40; quad -14 -60 -26 -70; stroke #3E2A1F 5; cap round; fill none }
+    circle { at -34 -74; radius 36 }
+    circle { at 34 -80; radius 40 }
+    circle { at 0 -116; radius 44 }
+    circle { at 0 -64; radius 40 }
+    circle { at 18 -98; radius 36 }
+    circle shade { at 26 -62; radius 30; fill #000000; opacity 0.18 }
+    circle light { at -16 -118; radius 26; fill #FFE4B0; opacity 0.16 }
+}
+
+// distant tree line on the far shore (depth: cooler, lighter, smaller)
+group farForest {
+    layer far
+    semantic plant.forest
+    role background
+    repeat 22 {
+        clone pine { at 10+i*47+rand(1,-16,16) 404; scale rand(2,0.22,0.42); fill #4A4C72; opacity 0.9 }
+    }
+}
+
+rect horizonHaze { at 500 398; size 1000 44; fill haze; layer far; semantic atmosphere.haze }
+
+// ---------- lake ----------
+group lakeGroup {
+    layer far
+    semantic water.lake
+    role background
+    clip water
+    rect water { at 500 480; size 1000 160; fill lake }
+    // reflections: flipped clones, no new geometry authored
+    group reflection {
+        opacity 0.28
+        clone mountains { at 0 800; scale 1 -1 }
+        clone farForest { at 0 808; scale 1 -1 }
+    }
+    group ripples {
+        opacity 0.55
+        repeat 16 {
+            rect { at 610+rand(1,-25,25) 406+i*9; size (120-i*5)*rand(2,0.5,1.2) 2.5; fill #FFE9B8; opacity (0.95 - t*0.7) }
+        }
+        repeat 20 {
+            rect { at rand(3,40,960) 420+rand(4,0,120); size rand(5,20,90) 1.8; fill #DDE7F5; opacity 0.5 }
+        }
+    }
+}
+
+// ---------- near bank ----------
+path bank {
+    move 0 566
+    curve 150 548 300 560 480 552
+    curve 650 546 820 562 1000 554
+    line 1000 700
+    line 0 700
+    close
+    fill ground
+    layer mid
+    semantic terrain.ground
+    role midground
+}
+
+group forest {
+    layer mid
+    semantic plant.forest
+    role midground
+    clone pine { at 70 598;  scale 1.25; fill #2A5238 }
+    clone pine { at 150 585; scale 0.95; fill #336245 }
+    clone pine { at 215 600; scale 1.1;  fill #244A32 }
+    clone roundTree { at 300 596; scale 0.9; fill #3E7A47 }
+    clone roundTree { at 905 606; scale 1.15; fill #35703F }
+    clone pine { at 830 600; scale 1.05; fill #2A5238 }
+    clone pine { at 965 590; scale 0.8;  fill #336245 }
+}
+
+group reeds {
+    layer mid
+    semantic plant.reed
+    repeat 4 {
+        group {
+            at 340+i*9+rand(1,-4,4) 562
+            rotate rand(2,-8,8)
+            line stem { from 0 0; to 3 -74; stroke #4F5F2A 2.5; cap round }
+            ellipse head { at 3 -66; size 7 22; fill #5A3A1E }
+        }
+    }
+    repeat 5 {
+        group {
+            at 690+i*14+rand(3,-6,6) 566
+            rotate rand(4,-10,10)
+            line stem { from 0 0; to -3 -64; stroke #4F5F2A 2.5; cap round }
+            ellipse head { at -3 -56; size 6 20; fill #5A3A1E }
+        }
+    }
+}
+
+group bushes {
+    layer mid
+    semantic plant.bush
+    repeat 7 {
+        ellipse { at 60+i*140+rand(1,-30,30) 600+rand(2,-6,6); size rand(3,60,130) rand(4,30,50); fill pick(5, #3B6B3A, #466F36, #2F5A30) }
+    }
+}
+
+// ---------- rock ----------
+group rock {
+    at 520 600
+    layer near
+    semantic terrain.rock
+    role foreground
+    ellipse shadow { at 0 46; size 360 52; fill #000000; opacity 0.3 }
+    path body {
+        move -150 40
+        curve -165 0 -135 -62 -85 -72
+        curve -30 -84 60 -88 112 -62
+        curve 152 -42 168 8 150 46
+        curve 100 62 -100 62 -150 40
+        close
+        fill rockFill
+    }
+    path topLight {
+        move -118 -42
+        curve -60 -78 30 -84 100 -58
+        curve 50 -64 -40 -58 -110 -28
+        close
+        fill #FFFFFF; opacity 0.2
+    }
+    path bottomShade {
+        move -150 40
+        curve -100 62 100 62 150 46
+        curve 120 36 -100 44 -150 40
+        close
+        fill #000000; opacity 0.25
+    }
+    path crack1 { move -60 -30; line -42 4; line -48 28; stroke #3E3833 2; cap round; fill none }
+    path crack2 { move 62 -40; quad 76 -4 96 22; stroke #3E3833 2; cap round; fill none }
+    path crack3 { move 20 10; line 30 30; stroke #3E3833 1.5; cap round; fill none }
+    group moss {
+        semantic plant.moss
+        ellipse { at -104 22; size 54 18; fill #6E8A3F; opacity 0.85 }
+        ellipse { at -70 -40; size 36 14; fill #7A9A44; opacity 0.7 }
+        ellipse { at 120 10; size 44 16; fill #6E8A3F; opacity 0.85 }
+    }
+    ellipse catShadow { at -6 -66; size 200 30; fill #000000; opacity 0.28 }
+}
+
+// ---------- cat ----------
+group cat {
+    at 516 526
+    layer near
+    semantic animal.cat
+    role foreground
+
+    // tail: a thick stroked curve; the stripes are a dashed clone of the same curve
+    path tail { move 58 -24; curve 120 -14 150 -62 128 -108; curve 112 -142 70 -130 86 -100; stroke #7A5236 20; cap round; fill none }
+    clone tail tailStripes { stroke #553A28 20; dash 14 24 }
+    circle tailTip { at 86 -100; radius 10; fill #553A28 }
+
+    ellipse haunchR { at 56 -50; size 90 96; fill #6E4F37 }
+    ellipse haunch { at -58 -52; size 112 104; fill #7E5A3F }
+
+    path body {
+        move -72 0
+        curve -98 -60 -74 -152 -22 -168
+        curve 22 -184 72 -152 72 -100
+        curve 76 -60 72 -20 60 0
+        close
+        fill catFur
+    }
+    fur body {
+        density 0.33
+        length 14
+        width 1.2
+        direction angle 82
+        curl 0.5
+        colors [#5A4030 #A8835E #C39A72]
+        opacity 0.55
+    }
+    ellipse neckShadow { at 0 -150; size 110 26; fill #000000; opacity 0.18 }
+    group stripes {
+        semantic animal.cat.markings
+        opacity 0.75
+        path { move -64 -118; quad -46 -146 -20 -150; stroke #5A3E2A 5; cap round; fill none }
+        path { move -72 -86;  quad -50 -112 -30 -118; stroke #5A3E2A 5; cap round; fill none }
+        path { move -76 -56;  quad -56 -78 -40 -84;  stroke #5A3E2A 4.5; cap round; fill none }
+        path { move 60 -120; quad 48 -146 24 -152; stroke #5A3E2A 4.5; cap round; fill none }
+        path { move 70 -84;  quad 56 -106 40 -112; stroke #5A3E2A 4.5; cap round; fill none }
+    }
+
+    group legs {
+        path legL { move -42 -96; curve -46 -60 -44 -26 -44 -4; line -14 -4; curve -12 -34 -12 -66 -14 -96; curve -22 -104 -34 -104 -42 -96; close; fill #8F6A4A }
+        path legR { move 12 -96; curve 10 -66 10 -34 12 -4; line 42 -4; curve 42 -26 44 -60 40 -96; curve 32 -104 20 -104 12 -96; close; fill #96704E }
+        ellipse pawL { at -28 0; size 38 20; fill #A07A56 }
+        ellipse pawR { at 24 0;  size 38 20; fill #A07A56 }
+        group toes {
+            opacity 0.6
+            line { from -34 -4; to -34 6; stroke #5A3E2A 1.5; cap round }
+            line { from -24 -5; to -24 6; stroke #5A3E2A 1.5; cap round }
+            line { from 18 -4;  to 18 6;  stroke #5A3E2A 1.5; cap round }
+            line { from 28 -5;  to 28 6;  stroke #5A3E2A 1.5; cap round }
+        }
+        path legGap { move -13 -86; quad -11 -40 -12 -6; stroke #5A3E2A 3; opacity 0.5; cap round; fill none }
+        path legGapR { move 11 -86; quad 9 -40 11 -6; stroke #5A3E2A 3; opacity 0.5; cap round; fill none }
+        // bib drawn over the leg tops hides the joint
+        path bib {
+            move -30 -128
+            curve -34 -150 -12 -156 0 -156
+            curve 12 -156 34 -150 30 -128
+            curve 26 -100 12 -86 0 -68
+            curve -12 -86 -26 -100 -30 -128
+            close
+            fill #D9B48C
+        }
+        path bibShade { move -30 -128; curve -26 -100 -12 -86 0 -68; curve -6 -92 -18 -108 -30 -128; close; fill #000000; opacity 0.1 }
+    }
+
+    group head {
+        at 0 -196
+        semantic animal.cat.head
+
+        path earL {
+            move -48 -26
+            curve -58 -56 -50 -84 -40 -92
+            curve -28 -74 -14 -54 -4 -40
+            close
+            fill #8A6548
+        }
+        path earInnerL {
+            move -42 -36
+            curve -48 -56 -44 -72 -39 -78
+            curve -30 -66 -22 -54 -14 -42
+            close
+            fill #E09A8E; opacity 0.9
+        }
+        clone earL earR { scale -1 1 }
+        clone earInnerL earInnerR { scale -1 1 }
+
+        path face {
+            move -56 -10
+            curve -58 -50 -30 -62 0 -62
+            curve 30 -62 58 -50 56 -10
+            curve 56 20 34 44 0 44
+            curve -34 44 -56 20 -56 -10
+            close
+            fill #956D4D
+        }
+        path cheekL { move -54 0; curve -70 10 -74 28 -62 34; curve -50 36 -36 30 -30 26; close; fill #956D4D }
+        clone cheekL cheekR { scale -1 1 }
+
+        group forehead {
+            semantic animal.cat.markings
+            opacity 0.8
+            path { move -22 -52; quad -18 -36 -14 -22; stroke #5A3E2A 5; cap round; fill none }
+            path { move 0 -56;   quad 0 -40 0 -24;     stroke #5A3E2A 5; cap round; fill none }
+            path { move 22 -52;  quad 18 -36 14 -22;   stroke #5A3E2A 5; cap round; fill none }
+        }
+
+        ellipse muzzle { at 0 20; size 52 30; fill #C9A27A; opacity 0.75 }
+
+        group eyeL {
+            at -22 -6
+            semantic animal.cat.eye
+            ellipse white { size 30 24; fill #F3ECD8 }
+            ellipse iris  { size 27 21; fill #8CC152 }
+            ellipse irisShade { at 0 -4; size 24 12; fill #4F8A2E; opacity 0.5 }
+            ellipse pupil { size 7 18; fill #1A1A1A }
+            circle glint { at -6 -6; radius 3.2; fill #FFFFFF }
+            path lid { move -14 -6; curve -8 -14 8 -14 14 -6; stroke #5A3E2A 2; cap round; fill none }
+        }
+        clone eyeL eyeR { at 22 -6 }
+
+        path nose { move 0 16; line -7 8; line 7 8; close; fill #D98B86 }
+        path mouth { move 0 16; quad 0 26 -11 28; move 0 16; quad 0 26 11 28; stroke #5A3E2A 2; cap round; fill none }
+
+        group whiskersL {
+            opacity 0.85
+            line { from -22 14; to -92 2;  stroke #F5EBD8 1.5; cap round }
+            line { from -22 18; to -94 18; stroke #F5EBD8 1.5; cap round }
+            line { from -22 22; to -90 34; stroke #F5EBD8 1.5; cap round }
+        }
+        clone whiskersL whiskersR { scale -1 1 }
+
+        path rimHead { move 30 -60; curve 50 -52 58 -36 56 -10; curve 56 8 50 22 40 32; stroke #FFC97A 3; opacity 0.7; cap round; fill none }
+        path rimEar { move 40 -92; curve 48 -80 54 -60 50 -38; stroke #FFC97A 2.5; opacity 0.7; cap round; fill none }
+    }
+
+    // warm rim light from the sun behind-right
+    group rimLight {
+        semantic light.rim
+        stroke #FFC97A 3
+        fill none
+        cap round
+        opacity 0.5
+        path { move 30 -176; curve 60 -160 72 -130 72 -104 }
+        path { move 88 -84; quad 120 -50 88 -16 }
+        path { move 128 -108; curve 112 -142 82 -132 80 -112 }
+    }
+}
+
+// ---------- foreground grass & flowers ----------
+define tuft {
+    repeat 6 b {
+        path {
+            move -1.6 0
+            quad (b-2.5)*3 -12 (b-2.5)*8+rand(1,-3,3) -20-rand(2,0,14)
+            quad (b-2.5)*3+1 -12 1.6 0
+            close
+        }
+    }
+}
+define bloom {
+    repeat 5 {
+        group { rotate i*72; ellipse { at 0 -3.5; size 3.6 6 } }
+    }
+    circle { radius 1.6; fill #F2B33D }
+}
+group grass {
+    layer foreground
+    semantic plant.grass
+    role foreground
+    repeat 26 {
+        clone tuft { at rand(1,0,360) rand(2,592,650); scale rand(3,0.7,1.3); fill pick(4, #4F7A2C, #6E9A3A, #3C6124) }
+    }
+    repeat 22 {
+        clone tuft { at rand(5,680,1000) rand(6,592,650); scale rand(7,0.7,1.3); fill pick(8, #4F7A2C, #6E9A3A, #3C6124) }
+    }
+    repeat 34 {
+        clone tuft { at rand(9,0,1000) rand(10,660,705); scale rand(11,1,1.7); fill pick(12, #3C6124, #4F7A2C, #2E4F1C) }
+    }
+}
+group flowers {
+    layer foreground
+    semantic plant.flower
+    repeat 16 {
+        clone bloom { at pick(1, rand(2,20,360), rand(3,690,980)) rand(4,615,690); scale rand(5,1,1.6); fill pick(6, #F4E6D0, #F28C8C, #F7D36B) }
+    }
+}

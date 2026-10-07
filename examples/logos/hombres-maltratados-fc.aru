@@ -1,0 +1,55 @@
+// Hombres Maltratados FC — escudo (ARU). Escudo granate, banda azul, balón con curita, FC y estrella.
+canvas 1200 1200
+background none
+
+gradient goldG linear 135 { stop 0 #9C7428; stop 0.45 #F2DA8E; stop 0.75 #C9993E; stop 1 #8A6524 }
+define shieldShape { path { move -300 -330; line 300 -330; line 300 -60; curve 300 160 140 290 0 360; curve -140 290 -300 160 -300 -60; close } }
+
+group crest {
+    at 600 600
+    semantic brand.hmfc.crest
+    polygon star { at 0 -420; points 0.0 -26.0 6.5 -8.9 24.7 -8.0 10.5 3.4 15.3 21.0 0.0 11.0 -15.3 21.0 -10.5 3.4 -24.7 -8.0 -6.5 -8.9; scale 2.2; fill goldG }
+    group shield {
+        clip body
+        path body { move -300 -330; line 300 -330; line 300 -60; curve 300 160 140 290 0 360; curve -140 290 -300 160 -300 -60; close; fill #7A1020 }
+        rect sash { at 0 40; size 1000 150; rotate 38; fill #13294B }
+        rect sashEdgeA { at -52 -28; size 1000 12; rotate 38; fill #FFFFFF }
+        rect sashEdgeB { at 52 108; size 1000 12; rotate 38; fill #FFFFFF }
+    }
+    clone shieldShape outline { fill none; stroke goldG 16 }
+    clone shieldShape innerLine { scale 0.9; at 0 -8; fill none; stroke #FFFFFF 5; opacity 0.9 }
+
+    group ball {
+        at 0 30
+        clip skin
+        circle skin { radius 128; fill #FFFFFF }
+        polygon { points 0.0 -42.0 39.9 -13.0 24.7 34.0 -24.7 34.0 -39.9 -13.0; fill #1A1A1A }
+        repeat 5 k {
+            group {
+                rotate k*72
+                polygon { at 0 -122; points 0.0 40.0 -38.0 12.4 -23.5 -32.4 23.5 -32.4 38.0 12.4; fill #1A1A1A }
+                line { from 0 -40; to 0 -84; stroke #1A1A1A 5 }
+            }
+        }
+    }
+    circle ballRim { at 0 30; radius 128; fill none; stroke #1A1A1A 7 }
+    // the joke: a band-aid on the ball
+    group bandAid {
+        at 0 30
+        rotate -35
+        rect strip { size 250 64; corner 32; fill #F1C08F; stroke #C98F5A 3 }
+        rect pad { size 84 64; fill #F8DDBD }
+        repeat 3 h { circle { at -92+h*12 -10; radius 3; fill #C98F5A } circle { at -92+h*12 10; radius 3; fill #C98F5A } }
+        repeat 3 h { circle { at 68+h*12 -10; radius 3; fill #C98F5A } circle { at 68+h*12 10; radius 3; fill #C98F5A } }
+    }
+    text fc { at 0 238; content "FC"; font "DIN Condensed"; weight 700; size 150; spacing 6; fill goldG }
+
+    // ribbon with the club name, overhanging the shield
+    group ribbon {
+        at 0 -250
+        polygon tailL { points -400 -34 -330 -34 -330 46 -400 46 -376 6; fill #0B1B33 }
+        polygon tailR { points 400 -34 330 -34 330 46 400 46 376 6; fill #0B1B33 }
+        rect band { size 680 92; fill #13294B; stroke goldG 5 }
+        text name { at 0 4; content "HOMBRES MALTRATADOS"; font "DIN Condensed"; weight 700; size 74; spacing 4; fill #FFFFFF }
+    }
+}

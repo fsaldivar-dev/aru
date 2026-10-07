@@ -1,0 +1,62 @@
+{
+  "name": "@fsaldivar.dev/aru",
+  "version": "0.6.0",
+  "type": "module",
+  "scripts": {
+    "serve": "node tools/serve.mjs 8787",
+    "metrics": "node tools/metrics.mjs examples/cat-on-rock.aru",
+    "test": "node --test tests/*.test.mjs",
+    "polish-bench": "node tools/polish-bench.mjs",
+    "pack:local": "npm pack --pack-destination artifacts",
+    "smoke:plugin": "node tools/smoke-plugin.mjs"
+  },
+  "description": "ARU Studio: editable reference illustration engine, embeddable editor and AI CLI",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/fsaldivar-dev/aru.git" },
+  "homepage": "https://github.com/fsaldivar-dev/aru#readme",
+  "bugs": { "url": "https://github.com/fsaldivar-dev/aru/issues" },
+  "publishConfig": { "access": "public" },
+  "keywords": ["illustration", "editor", "icons", "ai", "cli", "vector", "reference-tracing"],
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "aru": "bin/aru.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./plugin/index.d.ts",
+      "import": "./plugin/index.js"
+    },
+    "./node": {
+      "types": "./plugin/node.d.ts",
+      "import": "./plugin/node.js"
+    },
+    "./reference": "./src/reference-tools.js",
+    "./pack": "./src/pack-tools.js",
+    "./studio": "./index.html",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "plugin",
+    "bin",
+    "src",
+    "trace",
+    "vision",
+    "index.html",
+    "lab.html",
+    "examples",
+    "tools/agents-bridge.mjs",
+    "tools/serve.mjs",
+    "docs/plugin.md",
+    "docs/estilos.md",
+    "docs/produccion-iconos.md",
+    "docs/trazos-editables.md",
+    "README.md"
+  ],
+  "dependencies": {
+    "sharp": "0.35.5"
+  },
+  "main": "./plugin/index.js",
+  "types": "./plugin/index.d.ts"
+}

@@ -1,0 +1,55 @@
+// Generality check: the SAME generic operations (landmarks, regions, edge, planes, scatter, mirror) on a tree.
+canvas 600 500
+background #1D2B4A
+
+rect sky { at 300 160; size 600 320; fill #1D2B4A; layer background }
+// geometric scatter (outside blueprints): stars inside a plain shape
+scatter stars {
+    inside sky
+    count 40
+    scale 0.5..1.4
+    seed 7
+    circle { radius 1.8; fill #F8F1D0 }
+}
+rect ground { at 300 430; size 600 140; fill #26402E }
+
+blueprint tree {
+    at 100 40
+    size 400 420
+    seed 3
+    light top-left
+    symmetry vertical soft { jitter 0.03 }
+
+    palette { leaf #4E9A5B; leafLight #8CCB7E; leafDark #2D5F3A; bark #5B4033; fruit #E8573F }
+
+    landmarks {
+        top      0.50 0.02
+        crownL   0.06 0.42
+        lowL     0.20 0.66
+        trunkTopL 0.45 0.62
+        rootL    0.40 0.98
+        base     0.50 0.98
+        hollow   0.50 0.72
+    }
+
+    region trunk {
+        anchors [trunkTopL rootL base rootR trunkTopR]
+        interpolation smooth
+        fill bark
+        planes { count 3; palette [bark shade(bark, -0.3)] }
+    }
+    region crown {
+        anchors [top crownL lowL hollow lowR crownR]
+        fill leaf
+        planes { mode fan; focus mid(top, hollow); count 9; palette [leafLight leaf leafDark] }
+        edge { spikes 22; length 0.03..0.07; variation 0.5; lean 0.1 }
+        fur { density 0.8; length 0.04..0.08; colors [leafLight leafDark]; direction outward }
+    }
+    scatter fruits {
+        inside crown
+        count 9
+        scale 0.8..1.3
+        circle { radius 7; fill #E8573F }
+        circle { at -2 -2; radius 2.4; fill #FFD2C4 }
+    }
+}

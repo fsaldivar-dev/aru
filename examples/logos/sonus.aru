@@ -1,0 +1,29 @@
+// Sonus Academia de Música — logo (ARU). S como onda sonora que termina en nota.
+// dark-variant #1E2A4A>#F3EEDF #8A6524>#E9CF84
+canvas 1200 1200
+background none
+
+gradient gold linear 135 { stop 0 #9C7428; stop 0.45 #E9CF84; stop 0.75 #C49A45; stop 1 #8A6524 }
+
+group emblem {
+    at 600 380
+    semantic brand.sonus.emblem
+    circle disc { radius 215; fill #1E2A4A }
+    circle ring { radius 196; fill none; stroke gold 5 }
+    // the S: a sound wave
+    path wave { move 70 -118; curve -40 -170 -125 -70 -40 -14; curve 40 36 120 70 40 118; fill none; stroke gold 30; cap round }
+    // note head at the end of the S + flag at the start
+    ellipse head { at 20 126; size 74 52; rotate -22; fill gold }
+    path flag { move 70 -118; quad 112 -104 118 -64; quad 100 -86 74 -92; close; fill gold }
+    // sound waves to the right
+    repeat 3 k {
+        path { move 120+k*22 -46-k*16; quad 150+k*30 0 120+k*22 46+k*16; fill none; stroke #E9CF84 5; cap round; opacity 0.85-k*0.2 }
+    }
+}
+text name { at 600 760; content "SONUS"; font "Didot"; weight 700; size 210; spacing 34; fill #1E2A4A }
+group divider {
+    line { from 330 872; to 560 872; stroke gold 3 }
+    line { from 640 872; to 870 872; stroke gold 3 }
+    polygon { at 600 872; points 0 -12 12 0 0 12 -12 0; fill gold }
+}
+text subtitle { at 600 945; content "ACADEMIA DE MÚSICA"; font "Avenir Next"; weight 500; size 46; spacing 14; fill #8A6524 }

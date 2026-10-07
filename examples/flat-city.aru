@@ -1,0 +1,156 @@
+// Flat city — style test against a flat-vector reference. Parametric templates do the heavy lifting.
+canvas 1024 683
+background #6CC5EE
+
+// ---------- templates ----------
+define cloud {
+    path { move -70 0; curve -70 -22 -48 -30 -34 -22; curve -26 -46 8 -50 20 -28; curve 34 -40 60 -34 62 -14; curve 76 -14 82 -6 82 0; close; fill #F1E6E8 }
+}
+
+// arched window with a sill
+define arch {
+    path { move -5 9; line -5 -3; arc 5 5 0 0 1 5 -3; line 5 9; close }
+}
+
+// gable house: front facade + flat side wall + roof plane. Anchor = bottom-left corner of the facade.
+define house {
+    param w 80; param h 200; param rh 40; param d 80
+    param cf #F4A7C6; param cs #23224A; param cr #1BB1D6; param cw #EFE8D8
+    param arows 0; param acols 2
+    param drows 0; param dcols 4
+    param sarows 0; param sacols 2
+    param sdrows 0; param sdcols 1
+    rect side { at w+d/2 -h/2; size d h; fill cs }
+    polygon roof { points w/2 -h-rh w/2+d -h-rh w+d -h w -h; fill cr }
+    polygon front { points 0 0 w 0 w -h w/2 -h-rh 0 -h; fill cf }
+    group frontArches {
+        fill cw
+        repeat arows r { repeat acols c { clone arch { at w*(c+1)/(acols+1) -h+24+r*34 } } }
+    }
+    group frontDots {
+        fill cw
+        repeat drows r { repeat dcols c { circle { at w*(c+1)/(dcols+1) -h+16+r*18; radius 3.2 } } }
+    }
+    group sideArches {
+        fill cw
+        repeat sarows r { repeat sacols c { clone arch { at w+d*(c+1)/(sacols+1) -h+24+r*34 } } }
+    }
+    group sideDots {
+        fill cw
+        repeat sdrows r { repeat sdcols c { circle { at w+d*(c+1)/(sdcols+1) -h+16+r*22; radius 4.5 } } }
+    }
+}
+
+// flat-top tower: front with a dense window grid, side with portholes
+define tower {
+    param w 56; param h 340; param d 40
+    param cf #F4A7C6; param cs #23224A; param cw #EFE8D8
+    param rows 12; param cols 2; param srows 14
+    rect front { at w/2 -h/2; size w h; fill cf }
+    rect side { at w+d/2 -h/2; size d h; fill cs }
+    group windows {
+        fill cw
+        repeat rows r { repeat cols c { rect { at w*(c+1)/(cols+1) -h+18+r*26; size 9 14; corner 4.5 } } }
+    }
+    group portholes {
+        fill cw
+        repeat srows r { circle { at w+d/2 -h+16+r*22; radius 4.5 } }
+    }
+}
+
+// long hall: dark gable end + long wall + tiled roof (diamond lattice clipped to the roof)
+define hall {
+    param w 90; param L 170; param h 150; param rh 40
+    param cg #23224A; param cf #E94E8A; param cw #EFE8D8
+    param cols 5; param rows 2
+    group roof {
+        clip tiles
+        polygon tiles { points w/2 -h-rh w/2+L -h-rh w+L -h w -h; fill #3CB8D8 }
+        group lattice {
+            stroke #9FE0F0 1.4
+            repeat 40 { line { from w/2-60+i*9 -h-rh; to w/2-60+i*9+rh -h } }
+            repeat 40 { line { from w/2-20+i*9 -h-rh; to w/2-20+i*9-rh -h } }
+        }
+    }
+    rect wall { at w+L/2 -h/2; size L h; fill cf }
+    polygon gable { points 0 0 w 0 w -h w/2 -h-rh 0 -h; fill cg }
+    group windows {
+        fill cw
+        repeat rows r { repeat cols c { clone arch { at w+L*(c+0.5)/cols -h+30+r*44 } } }
+        repeat rows r { rect { at w+L/2 -h+46+r*44; size L-24 3 } }
+    }
+}
+
+define tree {
+    circle crownDark  { at -10 -230; radius 72; fill #E94E8A }
+    circle crownLight { at 62 -186; radius 60; fill #F4A7C6 }
+    group branches {
+        stroke #23224A 7
+        cap round
+        fill none
+        path { move 0 0; line 0 -200 }
+        path { move 0 -110; line -42 -160 }
+        path { move -26 -138; line -46 -146 }
+        path { move 0 -150; line 32 -196 }
+        path { move 0 -90; line 40 -120 }
+        path { move 18 -174; line 42 -176 }
+        path { move 0 -170; line -18 -214 }
+    }
+}
+
+// ---------- sky ----------
+group clouds {
+    layer background
+    semantic sky.cloud
+    clone cloud { at 150 92; scale 1.15 }
+    clone cloud { at 400 25; scale 1.1 }
+    clone cloud { at 960 48; scale 0.95 }
+    clone cloud { at 735 70; scale 0.75 }
+    clone cloud { at 380 132; scale 0.62 }
+    clone cloud { at 222 228; scale 1.25 }
+    clone cloud { at 560 185; scale 0.45 }
+    clone cloud { at 968 205; scale 1.05 }
+    clone cloud { at 470 276; scale 0.55 }
+    clone cloud { at 700 262; scale 0.45 }
+    clone cloud { at 12 178; scale 0.35 }
+}
+
+// ---------- hills ----------
+group hills {
+    layer far
+    semantic terrain.hill
+    path back { move 0 352; curve 200 330 380 380 560 360; curve 700 340 820 300 1024 300; line 1024 683; line 0 683; close; fill #138CB4 }
+    path mid  { move 0 440; curve 120 420 260 405 380 430; line 380 683; line 0 683; close; fill #1FA6CC }
+    path right { move 780 470; curve 860 450 960 440 1024 450; line 1024 683; line 780 683; close; fill #1FA6CC }
+}
+
+// ---------- trees ----------
+group trees {
+    layer mid
+    semantic plant.tree
+    clone tree treeLeft  { at 78 690 }
+    clone tree treeRight { at 762 482; scale 0.82 }
+}
+
+// ---------- back row ----------
+group backRow {
+    layer mid
+    semantic building
+    role background
+    clone house A { at 292 690; w 82; h 295; rh 55; d 86; arows 3; acols 2 }
+    clone tower B { at 466 690; w 56; h 345; d 42; rows 13 }
+    clone house C { at 570 690; w 76; h 335; rh 35; d 54; cf #E94E8A; arows 5; acols 2; sdrows 9 }
+    clone house D { at 792 690; w 66; h 282; rh 30; d 70; arows 3; acols 2 }
+}
+
+// ---------- front row ----------
+group frontRow {
+    layer near
+    semantic building
+    role foreground
+    clone hall E { at 122 700; w 90; L 165; h 154; rh 46; cols 5 }
+    clone house F { at 285 700; w 100; h 140; rh 46; d 86; cf #23224A; cs #E94E8A; drows 6; dcols 5; cw #F4A7C6; sarows 2; sacols 4 }
+    clone hall G { at 478 700; w 106; L 200; h 104; rh 52; cols 6; rows 1 }
+    clone house H { at 700 700; w 54; h 176; rh 46; d 66; cf #23224A; cs #E94E8A; sarows 4; sacols 2 }
+    clone house I { at 822 700; w 96; h 156; rh 50; d 110; cf #23224A; cs #F4A7C6; drows 6; dcols 5; cw #F4A7C6; sarows 3; sacols 4 }
+}

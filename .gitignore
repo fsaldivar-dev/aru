@@ -1,0 +1,21 @@
+desktop/dist/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+node_modules/
+artifacts/
+out/
+.claude/
+.DS_Store
+.env
+.env.*
+.npmrc
+*.log
+*.tmp
+# Third-party artwork supplied only for local benchmarks.
+references/*
+!references/README.md
+# Local research notes and personal benchmark runners.
+docs/codex-brief*.md
+tools/github-*.mjs
+tools/autopilot-purpose-gallery.mjs
+tools/generic-app-*.mjs

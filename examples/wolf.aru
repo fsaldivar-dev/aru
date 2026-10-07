@@ -1,0 +1,99 @@
+// Faceted wolf portrait — style test against a geometric "low-poly" character reference.
+// Only the left half is authored; the right half is a mirrored clone with a warm shading overlay.
+canvas 560 560
+background #3E4A54
+
+gradient sunDisc linear 90 { stop 0 #F0A04B; stop 1 #D4642A }
+
+// ---------- background ----------
+group backdrop {
+    layer background
+    rect band { at 280 40; size 560 80; fill #A9542C }
+    path ridge { move 0 70; line 40 58; line 70 72; line 110 50; line 150 66; line 200 54; line 240 70; line 300 52; line 350 68; line 400 56; line 440 74; line 500 60; line 560 72; line 560 110; line 0 110; close; fill #3E4A54 }
+    circle sun { at 280 290; radius 236; fill sunDisc }
+}
+
+// ---------- shoulders ----------
+group shoulders {
+    layer mid
+    polygon left  { points 0 560 0 470 120 420 250 560; fill #22344F }
+    polygon right { points 560 560 560 470 440 420 310 560; fill #2C3F5C }
+}
+
+// ---------- left half of the head (x <= 280) ----------
+group half {
+    layer near
+    // base silhouette fills the gaps between facets
+    polygon silhouette { points 280 120 228 132 150 26 92 172 84 200 56 252 88 258 50 312 92 322 64 372 116 384 104 432 168 458 196 520 250 556 280 566; fill #C7D6E2 }
+
+    group ear {
+        polygon outer { points 150 26 92 172 186 204 228 132; fill #E6EDF3 }
+        polygon inner { points 152 62 118 160 170 184 206 140; fill #3D5878 }
+        polygon innerLight { points 152 62 140 120 166 150 206 140; fill #5C7B9C }
+    }
+
+    group face {
+        polygon forehead { points 280 120 228 132 186 204 240 240 280 232; fill #F4F7FA }
+        polygon foreheadShade { points 228 132 186 204 214 214 246 150; fill #DCE6EE }
+        polygon brow { points 186 204 240 240 200 254 160 230; fill #CFDDE8 }
+        polygon bridge { points 280 232 252 248 256 332 280 340; fill #FFFFFF }
+        polygon muzzleSide { points 252 248 214 290 226 350 256 332; fill #E6EDF2 }
+        polygon cheek { points 160 230 200 254 214 290 226 350 180 362 140 300; fill #C3D4E2 }
+        polygon cheekLight { points 200 254 214 290 182 300 170 262; fill #D9E5EE }
+        polygon chin { points 226 350 256 332 280 384 280 420 240 402; fill #DCE6EE }
+        polygon jaw { points 180 362 226 350 240 402 280 420 280 470 210 442; fill #BFD0DE }
+    }
+
+    group fur {
+        polygon spikes { points 160 230 84 200 56 252 88 258 50 312 92 322 64 372 116 384 180 362 140 300; fill #AFC5D7 }
+        polygon spikesLight { points 140 300 92 262 100 300 120 330 180 362; fill #C3D4E2 }
+        polygon neck { points 116 384 180 362 210 442 280 470 280 566 250 556 196 520 168 458 104 432; fill #9FB7CB }
+        polygon neckLight { points 210 442 280 470 280 530 236 500; fill #B9CCDB }
+        group strands {
+            stroke #EEF3F7 2.5
+            cap round
+            fill none
+            path { move 92 268; line 132 296 }
+            path { move 76 330; line 128 342 }
+            path { move 120 404; line 168 410 }
+            path { move 186 470; line 220 486 }
+        }
+    }
+
+    // generated fur: spiky locks fanned around the cheek, angle and length driven by the repeat index
+    group locks {
+        repeat 12 k {
+            polygon { points 262+128*cos(206-k*7-6) 318+128*sin(206-k*7-6) 262+128*cos(206-k*7+6) 318+128*sin(206-k*7+6) 262+(172+rand(1,0,34))*cos(206-k*7+12) 318+(172+rand(1,0,34))*sin(206-k*7+12); fill cycle(k, #A9C0D3, #C9D8E5, #8FA9C0) }
+        }
+        repeat 9 k {
+            polygon { points 262+150*cos(196-k*8-4) 318+150*sin(196-k*8-4) 262+150*cos(196-k*8+4) 318+150*sin(196-k*8+4) 262+(184+rand(2,0,26))*cos(196-k*8+10) 318+(184+rand(2,0,26))*sin(196-k*8+10); fill cycle(k, #E3ECF3, #B4C8D9) }
+        }
+    }
+
+    group eye {
+        semantic animal.wolf.eye
+        polygon marking { points 176 256 140 238 160 268 200 284; fill #6E8399 }
+        polygon socket { points 176 256 206 244 244 254 232 276 200 280; fill #7F97AE }
+        polygon white  { points 184 260 208 250 238 258 228 272 200 274; fill #F6E7D2 }
+        circle iris  { at 212 262; radius 11; fill #E8902A }
+        circle pupil { at 213 262; radius 4.5; fill #1C1C24 }
+        circle glint { at 209 258; radius 2; fill #FFFFFF }
+        path lid { move 180 260; line 208 248; line 242 256; stroke #2B3442 3; cap round; fill none }
+    }
+}
+
+group otherHalf {
+    layer near
+    clone half mirrored { at 560 0; scale -1 1 }
+    // warm, slightly darker shading on the right side of the face
+    clone silhouette warm { at 560 0; scale -1 1; fill #A07E66; opacity 0.42 }
+}
+
+// ---------- centre features ----------
+group snout {
+    layer foreground
+    polygon nose { points 254 346 280 340 306 346 302 368 280 382 258 368; fill #4A2E26 }
+    polygon noseLight { points 262 350 280 346 290 350 280 358; fill #7A5144 }
+    path mouth { move 280 384; line 280 404; move 248 404; quad 264 414 280 404; quad 296 414 312 404; stroke #3A3F4A 3; cap round; fill none }
+    line seam { from 280 120; to 280 232; stroke #DCE6EE 2 }
+}

@@ -1,0 +1,55 @@
+// Bautizo — cielo suave, nubes, estrellas y ramitas de olivo (ARU)
+canvas 1500 2100
+background #EEF6FC
+gradient sky linear 90 { stop 0 #D9ECF9; stop 0.6 #F2F8FD; stop 1 #FFFFFF }
+gradient cloudShade linear 90 { stop 0 #FFFFFF; stop 1 #E2EDF7 }
+gradient clear radial 0.5 0.5 0.5 {
+    stop 0 #FFFFFF 0.75
+    stop 0.6 #FFFFFF 0.45
+    stop 1 #FFFFFF 0
+}
+rect base { at 750 1050; size 1500 2100; fill sky; layer background }
+
+define cloud {
+    ellipse { at 0 0; size 280 90 }
+    ellipse { at -70 -30; size 150 110 }
+    ellipse { at 30 -55; size 180 150 }
+    ellipse { at 105 -12; size 150 95 }
+}
+define star5 { polygon { points 0.0 -12.0 2.9 -4.0 11.4 -3.7 4.8 1.5 7.1 9.7 0.0 5.0 -7.1 9.7 -4.8 1.5 -11.4 -3.7 -2.9 -4.0 } }
+define olive {
+    path stem { move 0 0; quad 130 -26 260 0; fill none; stroke #9DBB95 4; cap round }
+    repeat 8 k {
+        group {
+            at 24+k*30 -6-k*0.6+(k%2)*8
+            rotate (k%2)*70-35
+            ellipse leaf { at 16 0; size 38 13; fill pick(81, #B4CFAD, #A7C49F, #C3DABD) }
+        }
+    }
+    circle { at 262 2; radius 6; fill #D9C77E }
+}
+
+group dots {
+    layer far
+    repeat 15 col { repeat 21 row { circle { at 50+col*100+(row%2)*50 50+row*100; radius 5; fill #D3E5F3; opacity 0.85 } } }
+}
+group clouds {
+    layer mid
+    fill cloudShade
+    clone cloud { at 260 300; scale 1.3 }
+    clone cloud { at 1180 200; scale 1.0; opacity 0.9 }
+    clone cloud { at 1250 1880; scale 1.4 }
+    clone cloud { at 260 1960; scale 0.9; opacity 0.9 }
+    clone cloud { at 820 120; scale 0.6; opacity 0.75 }
+}
+group stars {
+    layer mid
+    repeat 44 { clone star5 { at rand(91,0,1500) pick(92, rand(93,0,650), rand(94,1450,2100)); rotate rand(95,0,72); scale rand(96,0.6,1.5); fill pick(97, #F2D58A, #BFD9EE, #FFFFFF); opacity rand(98,0.6,1) } }
+}
+group branches {
+    layer near
+    clone olive { at 90 520; rotate -25; scale 1.4 }
+    clone olive { at 1410 1580; rotate 155; scale 1.4 }
+}
+ellipse textArea { at 750 1050; size 1100 1200; fill clear; layer near; semantic layout.textArea }
+rect frame { at 750 1050; size 1400 2000; corner 40; fill none; stroke #B9D4EA 3; dash 14 10; layer foreground }

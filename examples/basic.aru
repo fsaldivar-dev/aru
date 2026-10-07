@@ -1,0 +1,37 @@
+canvas 900 700
+
+background #F4E8D0
+
+circle sun {
+    at 720 130
+    radius 65
+    fill #F6C453
+}
+
+group mountain {
+    layer background
+
+    path {
+        move 0 500
+        curve 180 300 260 180 430 480
+        line 600 500
+        close
+
+        fill #66758A
+    }
+}
+
+group cat {
+    at 430 390
+
+    ellipse body {
+        size 220 300
+        fill #8A6548
+    }
+
+    ellipse head {
+        at 0 -170
+        size 180 150
+        fill #956D4D
+    }
+}

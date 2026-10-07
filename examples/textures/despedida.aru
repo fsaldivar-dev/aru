@@ -1,0 +1,43 @@
+// Despedida de soltera — corazones, burbujas y diamantes (ARU)
+canvas 1500 2100
+background #FFB0C6
+gradient bg linear 135 { stop 0 #FF8FB1; stop 0.5 #FFB3C7; stop 1 #FFD3B4 }
+gradient clear radial 0.5 0.5 0.5 {
+    stop 0 #FFF1F5 0.85
+    stop 0.6 #FFF1F5 0.55
+    stop 1 #FFF1F5 0
+}
+rect base { at 750 1050; size 1500 2100; fill bg; layer background }
+
+define heart { path { move 0 12; curve -30 -8 -22 -34 0 -22; curve 22 -34 30 -8 0 12; close } }
+define gem {
+    polygon outline { points -14 -6 -7 -14 7 -14 14 -6 0 14 }
+    line { from -14 -6; to 14 -6 }
+    line { from -7 -14; to -4 -6 }
+    line { from 7 -14; to 4 -6 }
+    line { from -4 -6; to 0 14 }
+    line { from 4 -6; to 0 14 }
+}
+define sparkle { polygon { points 0 -14 3 -3 14 0 3 3 0 14 -3 3 -14 0 -3 -3 } }
+
+group bubbles {
+    layer far
+    repeat 130 {
+        group {
+            at rand(31,0,1500) rand(32,0,2100)
+            scale rand(33,0.4,1.6)
+            circle { radius 16; fill #FFFFFF 0.12; stroke #FFFFFF 2; opacity 0.7 }
+            circle { at -6 -6; radius 3.5; fill #FFFFFF; opacity 0.8 }
+        }
+    }
+}
+group hearts {
+    layer mid
+    repeat 80 { clone heart { at rand(41,0,1500) rand(42,0,2100); rotate rand(43,-25,25); scale rand(44,0.7,2.2); fill pick(45, #FFFFFF, #FF5C8A, #E8336F, #FFE1EA); opacity rand(46,0.55,0.95) } }
+}
+group gems {
+    layer mid
+    repeat 26 { clone gem { at rand(51,0,1500) pick(52, rand(53,0,650), rand(54,1450,2100)); rotate rand(55,-20,20); scale rand(56,1,2.2); fill #FFFFFF 0.25; stroke #FFFFFF 2; join round } }
+    repeat 40 { clone sparkle { at rand(61,0,1500) rand(62,0,2100); scale rand(63,0.5,1.5); fill #FFFFFF; opacity rand(64,0.6,1) } }
+}
+ellipse textArea { at 750 1050; size 1150 1250; fill clear; layer near; semantic layout.textArea }

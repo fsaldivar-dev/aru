@@ -1,0 +1,22 @@
+// The mountain range of cat-on-rock.aru, rewritten with the high-level `ridge` generator.
+// Compare: hand-written mountains section ~676 tokens vs this one.
+canvas 1000 420
+background #E8794C
+gradient farRange linear 90 { stop 0 #8E7AA8; stop 1 #5E4F80 }
+gradient nearRange linear 90 { stop 0 #5A4A78; stop 1 #3A3157 }
+circle sun { at 610 292; radius 58; fill #FFE49A; layer background }
+
+ridge far {
+    from 0 330; to 1000 320; base 420
+    peaks 5; height 90 120; seed 4
+    fill farRange
+    light 610; snow 0.18
+    layer far; semantic terrain.mountain
+}
+ridge near {
+    from 0 352; to 1000 340; base 420
+    peaks 4; height 30 60; seed 9
+    fill nearRange
+    light 610 #F7B98A 0.25
+    layer mid; semantic terrain.mountain
+}

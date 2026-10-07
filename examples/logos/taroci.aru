@@ -1,0 +1,20 @@
+// Taroci — logo (ARU). Teselas redondeadas + wordmark en minúsculas; el punto de la i es el color de la marca.
+// dark-variant #2B2D42>#F4F4F6
+canvas 1200 1200
+background none
+
+gradient coral linear 135 { stop 0 #FF6B5B; stop 1 #FFA341 }
+
+group mark {
+    at 600 390
+    semantic brand.taroci.mark
+    rect tile { size 360 360; corner 96; fill coral }
+    rect shine { at -40 -60; size 200 120; corner 60; fill #FFFFFF; opacity 0.12; rotate -20 }
+    // lowercase t drawn with round strokes
+    path stem { move -30 -118; line -30 52; quad -30 118 48 118; fill none; stroke #FFFFFF 62; cap round }
+    path bar { move -104 -36; line 62 -36; fill none; stroke #FFFFFF 54; cap round }
+    circle dot { at 96 -108; radius 34; fill #1FB5A6 }
+}
+// "tarocı" with a dotless i: the dot is drawn as the brand teal circle (x measured with the real font)
+text name { at 600 860; content "tarocı"; font "Avenir Next"; weight 600; size 210; baseline alphabetic; fill #2B2D42 }
+circle iDot { at 845 728; radius 23; fill #1FB5A6 }
