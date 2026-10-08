@@ -10,12 +10,13 @@
 // Targets: a path ("cat.tail"), a query ("semantic:plant.tree role:background", AND of conditions;
 //          semantic is prefix-matched, role is inherited from ancestors, also type:<t> name:<n>), or "*".
 
+import { invalidateSceneIndex } from './scene-index.js';
 import { walkScene, nodeLocalBounds, updateBlueprint } from './scene.js';
 
 export function selectNodes(scene, target) {
   target = String(target).trim();
   if (target === '*') { const all = []; walkScene(scene.root, (n) => { if (n !== scene.root) all.push(n); }); return all; }
-  if (!/^(semantic|role|type|name|part):/.test(target)) { const n = scene.byPath.get(target); return n ? [n] : []; }
+  if (!/^(semantic|role|type|name|part|tag|brand|kind|resource):/.test(target)) { const n = scene.byPath.get(target); return n ? [n] : []; }
   // query: space-separated conditions, all must match. semantic is prefix-matched (plant matches plant.tree.pine);
   // role is inherited from the nearest ancestor that declares one (a pine inside a background forest is background).
   const conds = target.split(/\s+/).map((c) => { const i = c.indexOf(':'); return [c.slice(0, i), c.slice(i + 1)]; });
@@ -23,6 +24,10 @@ export function selectNodes(scene, target) {
   const visit = (n, inheritedRole) => {
     const role = n.role || inheritedRole;
     if (n !== scene.root && conds.every(([k, v]) =>
+      k === 'tag' ? !!n.resource?.tags.includes(v.toLocaleLowerCase()) :
+      k === 'brand' ? n.resource?.brand?.toLocaleLowerCase() === v.toLocaleLowerCase() :
+      k === 'kind' ? n.resource?.kind === v :
+      k === 'resource' ? n.resource?.key === v :
       k === 'semantic' ? !!n.semantic && (n.semantic === v || n.semantic.startsWith(v + '.')) :
       k === 'role' ? role === v :
       k === 'type' ? n.type === v :
@@ -74,6 +79,7 @@ function setProperty(n, prop, value) {
 function removeNode(scene, node) {
   walkScene(scene.root, (p) => { const i = p.children.indexOf(node); if (i >= 0) p.children.splice(i, 1); });
   walkScene(node, (c) => { scene.byPath.delete(c.path); scene.byId.delete(c.id); });
+  invalidateSceneIndex(scene);
 }
 
 // Shapes are authored in their parent's coordinate space, so a naive scale would pivot on the parent origin

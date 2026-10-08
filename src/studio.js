@@ -1,3 +1,4 @@
+import { RESOURCE_KINDS, listResources, normalizeResource, resourcePrompt } from './resources.js';
 // ARU Studio: layers, named groups, animations and batch editing on top of the ARU engine.
 // The ARU text is the single source of truth: every visual edit runs an operation from edit.js on the scene,
 // serializes it back with toAru() and recompiles. Undo/redo are text snapshots; the code drawer and the canvas
@@ -5,6 +6,7 @@
 import { listIconBatches, prepareIconExports, buildIconArchive } from './export-icons.js';
 import { refinementScope } from './refinement.js';
 import { compile } from './engine.js';
+import { layerWindow, LAYER_ROW_HEIGHT } from './layer-window.js';
 import { toAru } from './serialize.js';
 import { renderScene } from './render.js';
 import { selectNodes } from './ops.js';
@@ -14,6 +16,7 @@ import { applyBatch, previewBatch, BATCH_EXAMPLE } from './batch.js';
 import { pathSummary } from './path-edit.js';
 import { withOpaqueBackground, opaquePng } from './opaque.js';
 import { initChat } from './chat.js';
+import { projectContext, workspacePrompt } from './workspace-context.js';
 import { openLibrary, DOC_PRESETS } from './library.js';
 import { isDesktop, contextFromParts } from './agents.js';
 import { compile as compileAru } from './engine.js';
@@ -23,7 +26,7 @@ import { traceReferenceState, retuneReference, referenceKeep, prepareGlyph, retu
 
 import { freeTranslation } from '../plugin/layout.js';
 import { embedChannel } from './embed-channel.js';
-import { createIllustrator, documentContext, readDocument, EMPTY_DOCUMENT, insertInto } from '../plugin/core.js';
+import { createIllustrator, sceneContext, readDocument, EMPTY_DOCUMENT, insertInto } from '../plugin/core.js';
 const embedded = embedChannel();
 let embedRevision = 0, embedEpoch = 0, documentRevision = 0;
 
@@ -70,23 +73,23 @@ const S = {
   name: 'Sin título', text: '', scene: null, svg: '', errors: [], warnings: [],
   sel: [], anchor: null, past: [], future: [],
   tool: 'select', zoom: 1, pan: [0, 0], open: new Set(), filter: '', live: false,
-  rtab: 'props', userView: false, docPath: null, lib: null, doc: null, projects: [], anim: { duration: 0.6, delay: 0, stagger: 0.08, repeat: 'once', ease: 'ease-out' },
+  rtab: 'props', panels:store.get('aru-panels') || {leftCollapsed:matchMedia('(max-width:760px)').matches,rightCollapsed:matchMedia('(max-width:960px)').matches}, embeddedProject:null, userView: false, docPath: null, lib: null, doc: null, projects: [], anim: { duration: 0.6, delay: 0, stagger: 0.08, repeat: 'once', ease: 'ease-out' },
 };
 const node = (path) => S.scene?.byPath.get(path) || null;
 const selNodes = () => S.sel.map(node).filter(Boolean);
 const selIds = () => selNodes().map((n) => n.id);
-function pathOfNode(scene, target) {
-  // path a node WILL have after serialize + recompile (names sanitized like toAru)
-  let res = null;
-  (function walk(p, pre) { for (const c of p.children) { const path = pre ? `${pre}.${slug(c.name)}` : slug(c.name); if (c === target) { res = path; return; } walk(c, path); if (res) return; } })(scene.root, '');
-  return res;
+function pathsAfterSerialization(scene) {
+  // One traversal per edit, including newly created nodes; never one traversal per selected layer.
+  const paths = new Map();
+  (function walk(parent, prefix) { for (const n of parent.children) { const path = prefix ? `${prefix}.${slug(n.name)}` : slug(n.name); paths.set(n, path); walk(n, path); } })(scene.root, '');
+  return paths;
 }
 function ancestors(n) { const out = []; let p = E.parentOf(S.scene, n); while (p && p !== S.scene.root) { out.unshift(p); p = E.parentOf(S.scene, p); } return out; }
 const isLocked = (n) => n.locked || ancestors(n).some((a) => a.locked);
 
 // ------------------------------------------------------------------------------------------------- document
-function load(text, { name, record = false, keepSel = false, fit = false, docPath = undefined } = {}) {
-  const r = compile(text, { dataAttrs: true });
+function load(text, { name, record = false, keepSel = false, fit = false, docPath = undefined, prepared } = {}) {
+  const r = prepared || compile(text, { dataAttrs: true });
   if (!r.scene) { toast(r.errors[0]?.message || 'No se pudo compilar', true); return false; }
   if (record && S.text && S.text !== text) { S.past.push(S.text); if (S.past.length > 200) S.past.shift(); S.future = []; }
   if (S.text !== text || name && S.name !== name) documentRevision++;
@@ -104,15 +107,14 @@ function load(text, { name, record = false, keepSel = false, fit = false, docPat
 // run edit operations on the scene, serialize, recompile; `fn` may return nodes (objects) to select afterwards
 function commit(fn, msg) {
   try {
-    const out = fn(S.scene);
+    const out = fn(S.scene), paths = pathsAfterSerialization(S.scene);
     let nextSel = null;
-    if (out && (Array.isArray(out) ? out.length && typeof out[0] === 'object' : typeof out === 'object')) nextSel = (Array.isArray(out) ? out : [out]).map((n) => pathOfNode(S.scene, n)).filter(Boolean);
-    const keep = S.sel.map((p) => { const n = node(p); return n ? pathOfNode(S.scene, n) : null; }).filter(Boolean);
+    if (out && (Array.isArray(out) ? out.length && typeof out[0] === 'object' : typeof out === 'object')) nextSel = (Array.isArray(out) ? out : [out]).map((n) => paths.get(n)).filter(Boolean);
+    const keep = S.sel.map((p) => { const n = node(p); return n ? paths.get(n) : null; }).filter(Boolean);
     const text = toAru(S.scene, { precision: 3 });
     S.sel = nextSel || keep;
-    load(text, { record: true, keepSel: true });
     for (const p of S.sel) for (const a of ancestorsOfPath(p)) S.open.add(a);
-    renderLayers();
+    load(text, { record: true, keepSel: true });
     if (msg) toast(msg);
   } catch (e) { toast(e.message, true); load(S.text, { keepSel: true }); }
 }
@@ -142,12 +144,37 @@ async function flushSave() {
 
 // ------------------------------------------------------------------------------------------------- projects & documents
 const thumbs = new Map(); // doc id -> svg data url
+function activeProject() {return embedded ? S.embeddedProject : projectContext(S.projects.find(p=>p.id===S.doc?.project));}
+function activeWorkspace() {return workspacePrompt(activeProject(),{id:S.doc?.id || null,name:S.name});}
+function renderPanels() {
+  const app=$('#app');
+  for(const side of ['left','right']) {const collapsed=!!S.panels[side+'Collapsed'],b=$('#toggle'+(side==='left'?'Left':'Right')),label=`${collapsed?'Expandir':'Colapsar'} panel ${side==='left'?'izquierdo':'derecho'}`;
+    app.classList.toggle(side+'-collapsed',collapsed); b.setAttribute('aria-expanded',String(!collapsed));b.setAttribute('aria-label',label);b.title=label;
+    $('#'+side).inert=collapsed;
+  }
+  app.classList.toggle('props-open',!S.panels.rightCollapsed);
+}
+function openPanel(side) {S.panels[side+'Collapsed']=false;renderPanels();store.set('aru-panels',S.panels);}
+function renderWorkspace() {
+  const project=activeProject(),label=project?.name || (embedded?'Documento del anfitrión':'Sin proyecto');
+  $('#workspaceProject').textContent=label;$('#workspaceProject').title=project?.description || label;
+  $('#workspaceProject').disabled=!!embedded;
+  $('#workspaceDocument').textContent=S.name;$('#workspaceDocument').title=S.name;
+  $('#workspaceBar').title=`Proyecto: ${label} · Documento: ${S.name}`;
+}
+async function selectProject(id) {
+  const project=S.projects.find(p=>p.id===id);if(!project) return;
+  if(S.doc?.project===id) return;
+  if(project.docs.length) await openDoc(project.docs[0].id);
+  else newDocDialog({project:id});
+}
 function setDocChrome() {
   $('#docName').value = S.name;
   $('#crumbProject').textContent = S.projects.find((p) => p.id === S.doc?.project)?.name || 'Proyectos';
+  renderWorkspace();
   try { localStorage.setItem('aru-last-doc', S.doc?.id || ''); } catch { /* ignore */ }
 }
-async function refreshLibrary() { S.projects = (await S.lib.list()).projects; renderDocs(); }
+async function refreshLibrary() { S.projects = (await S.lib.list()).projects; renderWorkspace(); renderDocs(); }
 async function openDoc(id, { fit = true } = {}) {
   if (S.doc && saveTimer) await flushSave();
   if (saving) await saving;
@@ -191,8 +218,8 @@ async function renderDocs() {
   host.innerHTML = `
     <div class="lib-head"><span class="faint" title="${esc(S.lib.rootLabel)}">${S.lib.kind === 'files' ? esc(S.lib.rootLabel.replace(/^\/Users\/[^/]+/, '~')) : 'Guardado en este navegador'}</span>
       <button class="btn sm" data-lib="newDoc">${ICON_PLUS}Documento</button><button class="btn sm icon" data-lib="newProject" title="Nuevo proyecto">${ICON_FOLDER}</button></div>
-    ${S.projects.map((p) => `<div class="proj">
-      <div class="proj-h">${ICON_FOLDER}<span class="nm">${esc(p.name)}</span><span class="faint">${p.docs.length}</span>
+    ${S.projects.map((p) => `<div class="proj${S.doc?.project===p.id?' active-project':''}">
+      <div class="proj-h">${ICON_FOLDER}<button class="nm project-select" data-select-project="${esc(p.id)}" aria-current="${S.doc?.project===p.id?'true':'false'}">${esc(p.name)}</button><span class="faint">${S.doc?.project===p.id?'Activo · ':''}${p.docs.length}</span>
         <button class="ib" data-lib="newDocIn" data-project="${esc(p.id)}" title="Nuevo documento en ${esc(p.name)}">${ICON_PLUS}</button><button class="ib" data-projmenu="${esc(p.id)}" title="Opciones">${ICON_MORE}</button></div>
       ${p.docs.length ? p.docs.map((d) => `<div class="doc${S.doc?.id === d.id ? ' on' : ''}" data-open="${esc(d.id)}"><span class="th"><img data-thumb="${esc(d.id)}" alt=""></span><span class="meta"><b>${esc(d.name)}</b><span>${relTime(d.updated)}</span></span><button class="ib" data-docmenu="${esc(d.id)}" title="Opciones">${ICON_MORE}</button></div>`).join('') : '<div class="lib-empty">Vacío</div>'}
     </div>`).join('')}
@@ -207,8 +234,9 @@ async function renderDocs() {
 function bindDocs() {
   const host = $('#docs');
   host.addEventListener('click', async (e) => {
-    const t = e.target.closest('[data-docmenu],[data-projmenu],[data-lib],[data-open],[data-template],[data-trace-img],[data-trace-wolf]'); if (!t) return;
+    const t = e.target.closest('[data-select-project],[data-docmenu],[data-projmenu],[data-lib],[data-open],[data-template],[data-trace-img],[data-trace-wolf]'); if (!t) return;
     try {
+      if(t.dataset.selectProject) return await selectProject(t.dataset.selectProject);
       if (t.dataset.docmenu) return docMenu(t, t.dataset.docmenu);
       if (t.dataset.projmenu) return projectMenu(t, t.dataset.projmenu);
       if (t.dataset.lib === 'newDoc') return newDocDialog();
@@ -238,7 +266,7 @@ function docMenu(anchor, id) {
     { label: 'Abrir', run: () => openDoc(id) },
     { label: 'Renombrar…', run: () => renameDocDialog(doc) },
     { label: 'Duplicar', run: async () => { const nid = await S.lib.duplicate(id); await refreshLibrary(); toast('Documento duplicado'); return nid; } },
-    ...(others.length ? ['-', { cap: 'Mover a' }, ...others.map((p) => ({ label: p.name, run: async () => { if (S.doc?.id === id) await flushSave(); const nid = await S.lib.move(id, p.id); moveChat(id, nid); if (S.doc?.id === id) S.doc = { id: nid, project: p.id }; await refreshLibrary(); setDocChrome(); toast(`Movido a ${p.name}`); } }))] : []),
+    ...(others.length ? ['-', { cap: 'Mover a' }, ...others.map((p) => ({ label: p.name, run: async () => { if (S.doc?.id === id) await flushSave(); const nid = await S.lib.move(id, p.id); await moveChat(id, nid); if (S.doc?.id === id) {S.doc = { id: nid, project: p.id };chatApi?.setDoc(nid,{keep:true});} await refreshLibrary(); setDocChrome(); toast(`Movido a ${p.name}`); } }))] : []),
     '-',
     { label: 'Eliminar…', danger: true, run: () => deleteDocDialog(doc) },
   ]);
@@ -252,7 +280,7 @@ function projectMenu(anchor, id) {
     { label: p.docs.length ? 'Eliminar (vacíalo primero)' : 'Eliminar proyecto', danger: true, disabled: !!p.docs.length, run: async () => { await S.lib.removeProject(id); await refreshLibrary(); toast('Proyecto eliminado'); } },
   ]);
 }
-function moveChat(from, to) { try { const v = localStorage.getItem(`aru-chat:${from}`); if (v != null) { localStorage.setItem(`aru-chat:${to}`, v); localStorage.removeItem(`aru-chat:${from}`); } } catch { /* ignore */ } }
+async function moveChat(from, to) {if(from===to) return;await chatApi?.moveReferences(from,to); try { const v = localStorage.getItem(`aru-chat:${from}`); if (v != null) { localStorage.setItem(`aru-chat:${to}`, v); localStorage.removeItem(`aru-chat:${from}`); } const job=localStorage.getItem(`aru-production:${from}`);if(job!=null) {localStorage.setItem(`aru-production:${to}`,job);localStorage.removeItem(`aru-production:${from}`);} } catch { /* ignore */ } }
 // ---- dialogs ----
 function dialog({ title, body, ok = 'Aceptar', danger = false, onOk, init }) {
   const m = $('#modal');
@@ -304,7 +332,7 @@ function renameDocDialog(doc) {
 async function renameDoc(id, name) {
   if (S.doc?.id === id) await flushSave();
   const nid = await S.lib.rename(id, name);
-  moveChat(id, nid);
+  await moveChat(id, nid);
   if (S.doc?.id === id) { S.doc.id = nid; S.name = await S.lib.nameOf(nid); chatApi?.setDoc(nid, { keep: true }); }
   thumbs.delete(id);
   await refreshLibrary(); setDocChrome();
@@ -314,7 +342,7 @@ function renameProjectDialog(p) {
     onOk: async (f) => {
       if (S.doc?.project === p.id) await flushSave();
       const nid = await S.lib.renameProject(p.id, f.name.value);
-      if (nid !== p.id && S.lib.kind === 'files') { for (const d of p.docs) moveChat(d.id, d.id.replace(`${p.id}/`, `${nid}/`)); if (S.doc?.project === p.id) S.doc = { id: S.doc.id.replace(`${p.id}/`, `${nid}/`), project: nid }; }
+      if (nid !== p.id && S.lib.kind === 'files') { for (const d of p.docs) await moveChat(d.id, d.id.replace(`${p.id}/`, `${nid}/`)); if (S.doc?.project === p.id) {S.doc = { id: S.doc.id.replace(`${p.id}/`, `${nid}/`), project: nid };chatApi?.setDoc(S.doc.id,{keep:true});} }
       await refreshLibrary(); setDocChrome();
     } });
 }
@@ -325,7 +353,8 @@ function deleteDocDialog(doc) {
       const wasOpen = S.doc?.id === doc.id;
       if (wasOpen) { clearTimeout(saveTimer); saveTimer = null; }
       await S.lib.remove(doc.id);
-      try { localStorage.removeItem(`aru-chat:${doc.id}`); } catch { /* ignore */ }
+      await chatApi?.dropReferences(doc.id);
+      try { localStorage.removeItem(`aru-chat:${doc.id}`);localStorage.removeItem(`aru-production:${doc.id}`); } catch { /* ignore */ }
       await refreshLibrary();
       if (wasOpen) { const next = S.projects.flatMap((p) => p.docs)[0]; if (next) await openDoc(next.id); else { S.doc = null; await ensureStartDoc(); } }
       toast('Documento eliminado');
@@ -343,17 +372,28 @@ async function ensureStartDoc() {
 }
 
 // ------------------------------------------------------------------------------------------------- render
-function renderAll() { renderCanvas(); renderLayers(); renderProps(); renderCode(); renderStatus(); }
+function renderAll() { renderCanvas(); renderLayers(); renderProps(); renderCode(); renderStatus(); renderWorkspace(); chatApi?.refresh(); }
+let canvasElements = new Map(), canvasBounds = new Map();
 function renderCanvas() {
   const art = $('#art');
   art.innerHTML = S.svg;
+  canvasElements = new Map($$('[data-id]', art).map(el => [Number(el.dataset.id), el]));
+  canvasBounds = new Map();
   art.classList.toggle('paused', !S.live);
   $('#frameName').textContent = S.name;
   $('#frameSize').textContent = `${Math.round(S.scene.width)} × ${Math.round(S.scene.height)}`;
   applyView();
 }
 function applyView() {
-  $('#board').style.transform = `translate(${S.pan[0]}px, ${S.pan[1]}px) scale(${S.zoom})`;
+  // Render filters at visible resolution instead of magnifying their raster surface.
+  $('#board').style.transform = `translate3d(${S.pan[0]}px, ${S.pan[1]}px, 0)`;
+  const svg = $('#art svg');
+  if (svg) {
+    // Reassigning even an identical SVG viewport invalidates every material filter during pan.
+    const width = String(S.scene.width * S.zoom), height = String(S.scene.height * S.zoom);
+    if (svg.getAttribute('width') !== width) svg.setAttribute('width', width);
+    if (svg.getAttribute('height') !== height) svg.setAttribute('height', height);
+  }
   $('#frameTitle').style.transform = `translate(${S.pan[0]}px, ${S.pan[1] - 24}px)`;
   $('#zoomVal').textContent = `${Math.round(S.zoom * 100)}%`;
   drawOverlay();
@@ -370,18 +410,22 @@ function zoomAt(f, cx, cy) {
   S.pan = [cx - (cx - S.pan[0]) * (z / S.zoom), cy - (cy - S.pan[1]) * (z / S.zoom)];
   S.zoom = z; applyView();
 }
-const elOf = (n) => $(`#art [data-id="${n.id}"]`);
-// canvas-unit bounds of a node from the rendered SVG
+const elOf = n => canvasElements.get(n.id) || null;
+// Cache document-space bounds, independent of pan/zoom. A document render invalidates them;
+// during a drag only the affected subtree and its ancestors need live DOM measurement.
 function worldBounds(n) {
+  const moving = drag?.moved && drag.affected.has(n.id);
+  if (!moving && canvasBounds.has(n.id)) return canvasBounds.get(n.id);
   const el = elOf(n); if (!el) return null;
   const r = el.getBoundingClientRect(), b = $('#art').getBoundingClientRect();
   if (!r.width && !r.height) return null;
-  return [(r.left - b.left) / S.zoom, (r.top - b.top) / S.zoom, (r.right - b.left) / S.zoom, (r.bottom - b.top) / S.zoom];
+  const bounds = [(r.left-b.left)/S.zoom,(r.top-b.top)/S.zoom,(r.right-b.left)/S.zoom,(r.bottom-b.top)/S.zoom];
+  if (!moving && !S.live) canvasBounds.set(n.id, bounds);
+  return bounds;
 }
 function stageRect(n) {
-  const el = elOf(n); if (!el) return null;
-  const r = el.getBoundingClientRect(), s = $('#stage').getBoundingClientRect();
-  return [r.left - s.left, r.top - s.top, r.width, r.height];
+  const b = worldBounds(n); if (!b) return null;
+  return [S.pan[0]+b[0]*S.zoom,S.pan[1]+b[1]*S.zoom,(b[2]-b[0])*S.zoom,(b[3]-b[1])*S.zoom];
 }
 let hoverPath = null;
 function drawOverlay() {
@@ -397,11 +441,13 @@ function drawOverlay() {
   }
   // frames: top-level groups with a name get a title above them (click = select, drag = move the whole frame);
   // a group that covers most of the canvas is a layer (e.g. "Tinta" / "Colores" of a trace), not a frame
-  const canvasArea = S.scene.width * S.scene.height;
+  const canvasArea = S.scene.width * S.scene.height, stage = $('#stage');
+  const stageWidth = stage.clientWidth, stageHeight = stage.clientHeight;
   for (const f of S.scene.root.children) {
     if (f.type !== 'group' || !f.label || f.hidden) continue;
     const r = stageRect(f), b = worldBounds(f); if (!r || !b) continue;
     if ((b[2] - b[0]) * (b[3] - b[1]) > 0.7 * canvasArea) continue;
+    if (r[2] < 70 || r[0] > stageWidth || r[0]+r[2] < 0 || r[1]-22 > stageHeight || r[1] < 0) continue;
     parts.push(`<div class="ftitle${S.sel.includes(f.path) ? ' on' : ''}" data-frame="${esc(f.path)}" style="left:${r[0]}px;top:${r[1] - 22}px;max-width:${Math.max(90, r[2])}px" title="Arrastra para mover el frame">${ICON.hash}<b>${esc(f.label)}</b><span>${Math.round(b[2] - b[0])} × ${Math.round(b[3] - b[1])}</span></div>`);
   }
   if (marquee) parts.push(`<div class="marquee" style="left:${Math.min(marquee.x0, marquee.x1)}px;top:${Math.min(marquee.y0, marquee.y1)}px;width:${Math.abs(marquee.x1 - marquee.x0)}px;height:${Math.abs(marquee.y1 - marquee.y0)}px"></div>`);
@@ -409,13 +455,13 @@ function drawOverlay() {
 }
 
 // ------------------------------------------------------------------------------------------------- layers
-let flat = [];
+let flat = [], layerEntries = [], layerPaintFrame = null;
 function matchesFilter() {
   const f = S.filter.trim();
   if (!f) return null;
-  if (/^(part|role|type|semantic|name):|^\*$/.test(f) || f.includes(' ')) { try { return new Set(selectNodes(S.scene, f).map((n) => n.path)); } catch { return new Set(); } }
+  if (/^(part|role|type|semantic|name|tag|brand|kind|resource):|^\*$/.test(f)) { try { return new Set(selectNodes(S.scene, f).map((n) => n.path)); } catch { return new Set(); } }
   const q = f.toLowerCase(), set = new Set();
-  for (const n of S.scene.byId.values()) if ([n.name, n.label, n.semantic, n.type].some((v) => String(v || '').toLowerCase().includes(q))) set.add(n.path);
+  for (const n of S.scene.byId.values()) if ([n.name, n.label, n.semantic, n.type, n.resource?.brand, n.resource?.purpose, ...(n.resource?.tags || [])].some((v) => String(v || '').toLowerCase().includes(q))) set.add(n.path);
   return set;
 }
 function renderLayers() {
@@ -423,15 +469,36 @@ function renderLayers() {
   const visibleByFilter = new Set();
   if (match) for (const p of match) { visibleByFilter.add(p); for (const a of ancestorsOfPath(p)) visibleByFilter.add(a); }
   flat = [];
-  const rows = [];
+  layerEntries = [];
   const walk = (parent, depth) => {
     for (const n of [...parent.children].reverse()) { // topmost first, like every design tool
       if (match && !visibleByFilter.has(n.path)) continue;
       const isGroup = n.type === 'group' || n.type === 'fur';
       const open = isGroup && (S.open.has(n.path) || (match && visibleByFilter.has(n.path) && !match.has(n.path)));
       flat.push(n.path);
+      layerEntries.push({n,depth,isGroup,open});
+      if (open) walk(n, depth + 1);
+    }
+  };
+  walk(S.scene.root, 0);
+  $('#layerCount').textContent = S.scene.byId.size;
+  if (!host.dataset.noscroll && S.sel.length) {
+    const selected = new Set(S.sel), index = layerEntries.findIndex(({n}) => selected.has(n.path));
+    if (index >= 0) {
+      const top = index * LAYER_ROW_HEIGHT, height = host.clientHeight || 400;
+      if (top < host.scrollTop) host.scrollTop = top;
+      else if (top + LAYER_ROW_HEIGHT > host.scrollTop + height) host.scrollTop = top + LAYER_ROW_HEIGHT - height;
+    }
+  }
+  paintLayerWindow();
+}
+function paintLayerWindow() {
+  const host = $('#layers'), selected = new Set(S.sel);
+  const range = layerWindow(layerEntries.length, host.scrollTop, host.clientHeight || 400);
+  const rows = [];
+  for (const {n,depth,isGroup,open} of layerEntries.slice(range.start,range.end)) {
       const fill = typeof n.fill === 'string' && n.fill.startsWith('#') ? n.fill : null;
-      rows.push(`<div class="row${isGroup ? ' group' : ''}${open ? ' open' : ''}${S.sel.includes(n.path) ? ' sel' : ''}${n.hidden ? ' hidden-n' : ''}" style="--d:${depth}" data-path="${esc(n.path)}" draggable="true">
+      rows.push(`<div class="row${isGroup ? ' group' : ''}${open ? ' open' : ''}${selected.has(n.path) ? ' sel' : ''}${n.hidden ? ' hidden-n' : ''}" style="--d:${depth}" data-path="${esc(n.path)}" draggable="true">
         ${isGroup && n.children.length ? `<button class="chev" data-chev>${ICON.chev}</button>` : '<span class="chev"></span>'}
         <span class="ti">${ICON[n.type] || ICON.path}</span>
         ${fill && !isGroup ? `<span class="sw" style="background:${fill}"></span>` : ''}
@@ -441,27 +508,58 @@ function renderLayers() {
         <button class="ib${n.locked ? ' on' : ''}" data-lock title="Bloquear">${n.locked ? ICON.lock : ICON.unlock}</button>
         <button class="ib${n.hidden ? ' on' : ''}" data-eye title="Mostrar/ocultar">${n.hidden ? ICON.eyeOff : ICON.eye}</button>
       </div>`);
-      if (open) walk(n, depth + 1);
-    }
-  };
-  walk(S.scene.root, 0);
-  host.innerHTML = rows.join('') || '<div class="faint" style="padding:16px">Sin coincidencias.</div>';
-  $('#layerCount').textContent = S.scene.byId.size;
-  const selRow = host.querySelector('.row.sel'); if (selRow && !host.dataset.noscroll) selRow.scrollIntoView({ block: 'nearest' });
+  }
+  host.innerHTML = layerEntries.length ? `<div aria-hidden="true" style="height:${range.before}px"></div>${rows.join('')}<div aria-hidden="true" style="height:${range.after}px"></div>` : '<div class="faint" style="padding:16px">Sin coincidencias.</div>';
 }
 function select(paths, { add = false, toggle = false } = {}) {
   if (toggle) { const s = new Set(S.sel); for (const p of paths) s.has(p) ? s.delete(p) : s.add(p); S.sel = [...s]; }
   else if (add) S.sel = [...new Set([...S.sel, ...paths])];
   else S.sel = [...paths];
   for (const p of S.sel) for (const a of ancestorsOfPath(p)) S.open.add(a);
-  renderLayers(); renderProps(); drawOverlay(); renderStatus();
+  renderLayers(); renderProps(); drawOverlay(); renderStatus(); chatApi?.refreshSelection();
 }
 
 // ------------------------------------------------------------------------------------------------- properties
 function common(nodes, get) { const v = nodes.map(get); return v.every((x) => JSON.stringify(x) === JSON.stringify(v[0])) ? v[0] : undefined; }
+
+function resourceFields(node) {
+  const r = node.resource || {};
+  const text = (key, label, placeholder, max) => `<label>${label}<input data-resource="${key}" aria-label="${label}" maxlength="${max}" value="${esc(r[key] || '')}" placeholder="${placeholder}"></label>`;
+  return `<details class="section resource-fields"${node.resource ? ' open' : ''}><summary>Identidad del recurso${r.source ? ' · variante' : ''}</summary>
+    <p class="faint">Describe para qué sirve y qué debe conservar la IA al reutilizarlo.</p>
+    <label>Tipo<select data-resource="kind" aria-label="Tipo de recurso">${Object.entries(RESOURCE_KINDS).map(([id,label])=>`<option value="${id}"${(r.kind || 'other')===id?' selected':''}>${label}</option>`).join('')}</select></label>
+    ${text('brand','Marca o familia','Musaru',160)}
+    ${text('key','Clave única','musaru.icono',120)}
+    <label>Etiquetas<input data-resource="tags" aria-label="Etiquetas" value="${esc((r.tags || []).join(', '))}" placeholder="música, vinilo, oficial"></label>
+    ${text('purpose','Propósito','Identidad de la app; usar en splash y portada',600)}
+    <label>Rasgos que conservar<textarea data-resource="identity" aria-label="Rasgos que conservar" maxlength="2000" rows="3" placeholder="Vinilo oscuro, centro amarillo con m, fondo azul…">${esc(r.identity || '')}</textarea></label>
+    <label class="resource-check"><input type="checkbox" data-resource="reusable"${r.reusable !== false ? ' checked' : ''}>La IA puede reutilizarlo</label>
+    ${r.source ? `<p class="faint">Origen: ${esc(r.source)}</p>` : ''}
+    <div class="line"><button class="btn sm" data-save-resource>Guardar identidad</button>${r.reusable ? '<button class="btn sm" data-reuse-resource>Reutilizar…</button>' : ''}${node.resource ? '<button class="btn sm" data-remove-resource title="Quitar solo la ficha, conserva el dibujo">Quitar ficha</button>' : ''}</div>
+  </details>`;
+}
+function reuseResourceDialog(path) {
+  const source = node(path); if (!source) return;
+  const version = documentRevision;
+  dialog({title:'Reutilizar recurso',ok:'Insertar copia editable',body:`<p>${esc(E.displayName(source))}. La copia conserva su identidad y registra el origen.</p>
+    <label>Destino<select name="destination"><option value="root">Lienzo</option>${[...S.scene.byPath.values()].filter(n=>n.type==='group'&&!isLocked(n)&&n.path!==path).map(n=>`<option value="${esc(n.path)}">${esc(E.displayName(n))} · ${esc(n.path)}</option>`).join('')}</select></label>
+    <p class="faint">X e Y son coordenadas locales del destino.</p><div class="grid3"><label>X<input name="x" type="number" value="${source.at[0]+24}" required></label><label>Y<input name="y" type="number" value="${source.at[1]+24}" required></label><label>Escala<input name="scale" type="number" min="0.001" step="any" value="1" required></label></div>`,onOk:form=>{
+      if (documentRevision !== version) throw new Error('El documento cambió; vuelve a elegir el recurso');
+      const r=createIllustrator({text:S.text}).preview([{op:'reuse',other:path,target:form.destination.value,x:Number(form.x.value),y:Number(form.y.value),scale:Number(form.scale.value)}]);
+      load(r.text,{record:true,keepSel:true}); toast('Recurso reutilizado como copia editable');
+    }});
+}
+function showResources() {
+  const resources = listResources(S.scene);
+  dialog({ title:'Recursos del documento',ok:'Cerrar',body:`<p class="faint">${resources.length} recursos guardados. Busca también por etiquetas en Capas.</p><div class="resource-catalog">${resources.map((r,i)=>`<article><strong>${esc(r.label)}</strong><span class="faint">${esc(RESOURCE_KINDS[r.kind])}${r.brand?' · '+esc(r.brand):''}${r.source?' · variante':''}</span><p>${esc(r.purpose || 'Sin propósito definido')}</p><p class="faint">${esc(r.tags.join(' · '))}</p>${r.source || r.key ? `<p class="faint">${r.source ? 'Origen' : 'Clave'}: ${esc(r.source || r.key)}</p>` : ''}<button type="button" class="btn sm" data-resource-select="${i}">Seleccionar</button>${r.reusable?` <button type="button" class="btn sm" data-resource-use="${i}">Reutilizar…</button>`:''}</article>`).join('') || '<p>Selecciona un grupo y abre Propiedades → Identidad del recurso para registrar el primero.</p>'}</div>`,onOk:()=>{},init:form=>{
+    form.querySelectorAll('[data-resource-select]').forEach(b=>b.onclick=()=>{form.closest('#modal').classList.remove('on');select([resources[+b.dataset.resourceSelect].path]);$('#rightTabs [data-rtab="props"]')?.click();});
+    form.querySelectorAll('[data-resource-use]').forEach(b=>b.onclick=()=>{const path=resources[+b.dataset.resourceUse].path;form.closest('#modal').classList.remove('on');reuseResourceDialog(path);});
+  }});
+}
+
 function renderProps() {
   const host = $('#props'), nodes = selNodes();
-  $('#app').classList.toggle('props-open', nodes.length > 0 || S.rtab === 'chat');
+  renderPanels();
   if (!nodes.length) { host.innerHTML = docPanel(); bindDoc(); return; }
   const one = nodes.length === 1 ? nodes[0] : null;
   const fill = common(nodes, (n) => n.fill), stroke = common(nodes, (n) => n.stroke), sw = common(nodes, (n) => n.strokeWidth), op = common(nodes, (n) => n.opacity);
@@ -477,6 +575,7 @@ function renderProps() {
     : `<div class="stack"><label class="field"><span class="k">Renombrar</span><input id="renamePattern" value="{part} {i}" placeholder="{name} {i}"></label>
       <div class="line"><button class="btn sm" id="btnRename">Renombrar ${nodes.length} capas</button><span class="faint">{name} {label} {type} {part} {i} {n}</span></div></div>`}
   </div>
+  ${one ? resourceFields(one) : ''}
   <div class="section">
     <h3>Transformación${one ? '' : '<span class="r">se aplica a todas</span>'}</h3>
     <div class="grid2">
@@ -533,6 +632,15 @@ function renderProps() {
 function bindProps(nodes) {
   const host = $('#props'), ids = nodes.map((n) => n.id);
   const on = (sel, ev, f) => $$(sel, host).forEach((el) => el.addEventListener(ev, f));
+  on('[data-save-resource]', 'click', () => {
+    try { const value = { ...nodes[0].resource };
+      for (const input of $$('[data-resource]', host)) value[input.dataset.resource] = input.type === 'checkbox' ? input.checked : input.dataset.resource === 'tags' ? input.value.split(',') : input.value;
+      const resource = normalizeResource(value);
+      commit(s => E.setProps(s, ids, { resource }), 'Identidad del recurso guardada');
+    } catch (e) { toast(e.message, true); }
+  });
+  on('[data-reuse-resource]', 'click', () => reuseResourceDialog(nodes[0].path));
+  on('[data-remove-resource]', 'click', () => commit(s => E.setProps(s, ids, { resource: null }), 'Ficha de recurso quitada'));
   on('[data-refine]', 'click', (e) => showBatchPreview([{ op: e.currentTarget.dataset.refine, target: 'selection', tolerance: 1, strength: 0.6 }], 'Afinar trazos'));
   on('[data-prop="label"]', 'change', (e) => commit((s) => E.setProps(s, ids, { label: e.target.value.trim() || null }), 'Renombrado'));
   on('#btnRename', 'click', () => commit((s) => E.renameBatch(s, ids, $('#renamePattern').value), `${ids.length} capas renombradas`));
@@ -674,7 +782,9 @@ function aiContext() {
   })(S.scene.root, 0);
   return `You edit an ARU vector document through BATCH OPERATIONS only (never write geometry, paths or SVG).
 Document "${S.name}", canvas ${S.scene.width}x${S.scene.height}, ${S.scene.byId.size} layers.
+${activeWorkspace()}
 ${layoutSummary()}
+${resourcePrompt(S.scene)}
 Outline:
 ${lines.join('\n')}${count > max ? '\n  …' : ''}
 
@@ -750,7 +860,10 @@ function onPointerDown(e) {
 }
 function startDrag(e) {
   const nodes = selNodes().filter((n) => !isLocked(n));
-  drag = { start: stagePt(e), nodes: nodes.map((n) => ({ n, el: elOf(n), orig: elOf(n)?.getAttribute('transform') || '', s: scaleOfId(n.id) })), moved: false };
+  const affected = new Set();
+  const visit = n => { affected.add(n.id); for (const child of n.children) visit(child); };
+  for (const n of nodes) { visit(n); for (const a of ancestors(n)) affected.add(a.id); }
+  drag = { affected, start: stagePt(e), nodes: nodes.map((n) => ({ n, el: elOf(n), orig: elOf(n)?.getAttribute('transform') || '', s: scaleOfId(n.id) })), moved: false };
 }
 function onPointerMove(e) {
   if (panDrag) { S.userView = true; S.pan = [panDrag.pan[0] + e.clientX - panDrag.x, panDrag.pan[1] + e.clientY - panDrag.y]; applyView(); return; }
@@ -826,6 +939,9 @@ function setTool(t) { S.tool = t; $$('[data-tool]').forEach((b) => b.classList.t
 // ------------------------------------------------------------------------------------------------- layers interaction
 function bindLayers() {
   const host = $('#layers');
+  $('#btnResources').onclick = showResources;
+  host.addEventListener('scroll', () => { if (layerPaintFrame !== null) return; layerPaintFrame = requestAnimationFrame(() => { layerPaintFrame = null; paintLayerWindow(); }); }, {passive:true});
+  new ResizeObserver(() => paintLayerWindow()).observe(host);
   host.addEventListener('click', (e) => {
     const row = e.target.closest('.row'); if (!row) return;
     const p = row.dataset.path, n = node(p); if (!n) return;
@@ -1075,12 +1191,16 @@ function placeAndFit(path) { const notes = [placeFreely(path), fitCanvas()].filt
 
 // ------------------------------------------------------------------------------------------------- assistant helpers
 // render of the artboard (no animation, no data attributes) as PNG base64, for the AI to SEE the canvas
-async function canvasPng(max = 768) {
+async function canvasPng(max = 768,selection=[]) {
   try {
-    const svg = renderScene(S.scene, { dataAttrs: false, animate: false });
+    let box=[0,0,S.scene.width,S.scene.height];
+    const boxes=selection.map(p=>S.scene.byPath.get(p)).filter(Boolean).map(worldBounds).filter(Boolean);
+    if(boxes.length) {box=[Math.min(...boxes.map(b=>b[0])),Math.min(...boxes.map(b=>b[1])),Math.max(...boxes.map(b=>b[2])),Math.max(...boxes.map(b=>b[3]))];const pad=Math.max(4,(Math.max(box[2]-box[0],box[3]-box[1]))*.08);box=[box[0]-pad,box[1]-pad,box[2]+pad,box[3]+pad];}
+    const width=Math.max(1,box[2]-box[0]),height=Math.max(1,box[3]-box[1]);
+    const svg = renderScene(S.scene, { dataAttrs: false, animate: false }).replace(/viewBox="[^"]+"/,`viewBox="${box[0]} ${box[1]} ${width} ${height}"`).replace(/width="[^"]+"/,`width="${width}"`).replace(/height="[^"]+"/,`height="${height}"`);
     const img = new Image(); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); await img.decode();
-    const k = Math.min(1, max / Math.max(S.scene.width, S.scene.height));
-    const cv = document.createElement('canvas'); cv.width = Math.round(S.scene.width * k); cv.height = Math.round(S.scene.height * k);
+    const k = Math.min(boxes.length?8:1, max / Math.max(width,height));
+    const cv = document.createElement('canvas'); cv.width = Math.max(1,Math.round(width * k)); cv.height = Math.max(1,Math.round(height * k));
     const g = cv.getContext('2d'); g.fillStyle = '#ffffff'; if (S.scene.background === 'none') g.fillRect(0, 0, cv.width, cv.height);
     g.drawImage(img, 0, 0, cv.width, cv.height);
     return cv.toDataURL('image/png').split(',')[1];
@@ -1304,7 +1424,10 @@ function boot() {
   addEventListener('click', () => $$('.menu.open').forEach((m) => m.classList.remove('open')));
   bindActs($('#top')); bindActs($('#layerFoot'));
   $('#docName').addEventListener('change', (e) => { if (S.doc) renameDoc(S.doc.id, e.target.value).catch((err) => toast(err.message, true)); });
-  $('#crumbProject').addEventListener('click', () => $('#leftTabs [data-tab="docs"]').click());
+  const showProjects=()=>{if(embedded) return;openPanel('left');$('#leftTabs [data-tab="docs"]').click();};
+  $('#crumbProject').addEventListener('click',showProjects);$('#workspaceProject').addEventListener('click',showProjects);
+  for(const side of ['left','right']) $('#toggle'+(side==='left'?'Left':'Right')).addEventListener('click',()=>{S.panels[side+'Collapsed']=!S.panels[side+'Collapsed'];renderPanels();store.set('aru-panels',S.panels);});
+  renderPanels();
   $('#btnPresent').addEventListener('click', present);
   $('#btnClosePresent').addEventListener('click', () => $('#present').classList.remove('on'));
   $('#present').addEventListener('click', (e) => { if (!e.target.closest('.close')) present(); });
@@ -1317,24 +1440,33 @@ function boot() {
     ...(embedded ? { version: () => embedRevision, detectAgents: () => embedded.agent('detect'), runAgent: args => embedded.agent('run', args), cancelAgent: runId => embedded.agent('cancel', { runId }) } : {}),
     version: () => documentRevision,
     context: () => aiContextForChat(),
+    workspace: activeWorkspace,
     getText: () => S.text,
     commitProduction: text => load(text, { record: true, keepSel: true }),
     rasterizeProduction: rasterForScore,
     productionProgress: job => embedded?.production({ job, document: { text: S.text, name: S.name, revision: embedRevision } }),
     selection: () => S.sel.slice(),
+    selectionNames: paths => paths.map(p=>{const n=S.scene.byPath.get(p);return n?E.displayName(n):p;}),
     previewRefinement: (ops, options) => createIllustrator({ text: S.text, selection: S.sel }).previewRefinement(ops, options),
-    refinementScope: mode => ({ ...refinementScope(S.text, { selection: S.sel, mode }), expectedRevision: documentRevision }),
+    refinementScope: (mode,selection=S.sel) => ({ ...refinementScope(S.text, { selection, mode }), expectedRevision: documentRevision }),
     refine: (ops, options) => { if (options.expectedRevision != null && options.expectedRevision !== documentRevision) throw new Error('El documento cambió; pide un refinamiento nuevo'); const r = createIllustrator({ text: S.text, selection: S.sel }).previewRefinement(ops, options); load(r.text, { record: true, keepSel: true }); return r; },
     depth: () => S.past.length,
-    apply: (ops) => { if (embedded) { const r = createIllustrator({ text: S.text, selection: S.sel }).preview(ops); load(r.text, { record: true, keepSel: true }); return { log: r.log }; } const out = { log: [] }; commit((s) => { const r = applyBatch(s, ops, { selection: S.sel.map((p) => s.byPath.get(p)?.id).filter(Boolean) }); out.log = r.log; return r.created.length ? r.created : undefined; }); return out; },
+    previewOperations: (ops,{selection=S.sel}={}) => createIllustrator({text:S.text,selection}).preview(ops),
+    apply: (ops,{selection=S.sel,expectedRevision}={}) => {
+      if(expectedRevision!=null && expectedRevision!==documentRevision) throw new Error('El documento cambió; solicita el cambio de nuevo');
+      const before=new Set(S.scene.byPath.keys()),r=createIllustrator({text:S.text,selection}).preview(ops);
+      load(r.text,{record:true,keepSel:true});
+      const createdPaths=[...S.scene.byPath.keys()].filter(p=>!before.has(p));
+      return {...r,createdPaths};
+    },
     undoRange: (from, to) => { if (S.past.length !== to) return false; while (S.past.length > from) undo(); return true; },
-    snapshot: () => canvasPng(768),
+    snapshot: selection => canvasPng(768,selection),
     insertAru: (text, label, into) => insertAru(text, label, into),
     traceReference: (att, ref) => traceReference(att, ref),
     traceRefState: (att, ref, progress) => traceRefState(att, ref, progress),
     retraceRef: (st, tune) => retraceRef(st, tune),
     compareRefPng: (st) => compareRefPng(st),
-    insertRef: (st, att, ref) => { const rev = embedRevision, epoch = embedEpoch; return insertRef(st, att, ref, () => !embedded || (embedRevision === rev && embedEpoch === epoch)); },
+    insertRef: (st,att,ref,active=()=>true) => {const rev=documentRevision,id=S.doc?.id,epoch=embedEpoch;return insertRef(st,att,ref,()=>active()&&documentRevision===rev&&S.doc?.id===id&&embedEpoch===epoch);},
     groupRef: (st, assignments) => groupRef(st, assignments),
     glyphPrepare: (st, ref) => glyphPrepare(st, ref),
     packPrepare: (text) => packPrepare(text),
@@ -1349,6 +1481,7 @@ function boot() {
     toast,
   });
   for (const b of $$('#rightTabs button')) b.addEventListener('click', () => {
+    openPanel('right');
     S.rtab = b.dataset.rtab; $$('#rightTabs button').forEach((x) => x.classList.toggle('on', x === b));
     $('#props').style.display = S.rtab === 'props' ? '' : 'none'; $('#chat').style.display = S.rtab === 'chat' ? 'flex' : 'none';
     if (S.rtab === 'chat') { chat.refresh(); $('#chatIn')?.focus(); }
@@ -1377,13 +1510,14 @@ function bootEmbedded() {
     const session = () => createIllustrator({ text: S.text, name: S.name, selection: S.sel });
     const doc = () => ({ text: S.text, name: S.name, revision: embedRevision });
     if (method === 'document') return doc();
-    if (method === 'context') return { ...documentContext(S.text, { name: S.name, selection: S.sel, measureBounds: worldBounds }), revision: embedRevision };
-    if (method === 'load') { readDocument(args.text); embedEpoch++; S.past = []; S.future = []; S.sel = []; chatApi.setDoc(`embed:${embedEpoch}`); load(args.text, { name: args.name, fit: true }); return doc(); }
-    if (method === 'select') { const x = session(); x.select(args.paths); S.sel = args.paths.slice(); renderAll(); return S.sel; }
-    if (method === 'refine') { if (args.expectedRevision != null && args.expectedRevision !== embedRevision) throw new Error('El documento cambió'); const r = session().previewRefinement(args.operations, args); load(r.text, { record: true, keepSel: true }); return { ...doc(), changed: r.changed, geometryPreserved: r.geometryPreserved, log: r.log }; }
+    if (method === 'project') {S.embeddedProject=projectContext(args.project);documentRevision++;embedRevision++;chatApi.stopProduction();renderWorkspace();return S.embeddedProject;}
+    if (method === 'context') return { ...sceneContext(S.scene, { name: S.name, selection: S.sel, project:activeProject(), measureBounds: worldBounds }), revision: embedRevision };
+    if (method === 'load') { const prepared = readDocument(args.text, {dataAttrs:true}); embedEpoch++; S.past = []; S.future = []; S.sel = []; chatApi.setDoc(`embed:${embedEpoch}`); load(args.text, { name: args.name, fit: true, prepared }); return doc(); }
+    if (method === 'select') { if (!Array.isArray(args.paths) || args.paths.some(p => !S.scene.byPath.has(p))) throw new Error('Selección inválida'); select(args.paths); return S.sel; }
+    if (method === 'refine') { if (args.expectedRevision != null && args.expectedRevision !== embedRevision) throw new Error('El documento cambió'); const r = session().previewRefinement(args.operations, args); load(r.text, { record: true, keepSel: true }); chatApi.recordPaint(args.operations,r.log,args.selection || S.sel); return { ...doc(), changed: r.changed, geometryPreserved: r.geometryPreserved, log: r.log }; }
     if (method === 'exportIcons') { const r = await buildIconArchive(S.text, args, async (scene, size) => { const url = await opaquePng(scene, renderScene, { width: size, height: size }); return Uint8Array.from(atob(url.split(',')[1]), c => c.charCodeAt(0)); }); return { ...r, data: Array.from(r.data) }; }
     if (method === 'preview') return session().preview(args.operations);
-    if (method === 'apply') { if (args.expectedRevision != null && args.expectedRevision !== embedRevision) throw new Error('El documento cambió'); const r = session().preview(args.operations); load(r.text, { record: true, keepSel: true }); return { ...doc(), log: r.log }; }
+    if (method === 'apply') { if (args.expectedRevision != null && args.expectedRevision !== embedRevision) throw new Error('El documento cambió'); const r = session().preview(args.operations); load(r.text, { record: true, keepSel: true }); chatApi.recordPaint(args.operations,r.log,S.sel); return { ...doc(), log: r.log }; }
     if (method === 'insert') { const r = insertAru(args.text, args.label, args.into); if (!r.ok) throw new Error(r.errors.join('; ')); return { ...doc(), report: r }; }
     if (method === 'trace') {
       const epoch = embedEpoch, rev = embedRevision;
@@ -1395,6 +1529,7 @@ function bootEmbedded() {
     if (method === 'ask') { $('#rightTabs [data-rtab="chat"]').click(); const report = await chatApi.request(args.message, args.options); return { ...doc(), report }; }
     if (method === 'production') return chatApi.getProduction();
     if (method === 'stopProduction') return chatApi.stopProduction();
+    if (method === 'revalidateProduction') return chatApi.revalidateProduction(args.job);
     if (method === 'resumeProduction') { $('#rightTabs [data-rtab="chat"]').click(); const report = await chatApi.resumeProduction(args.job); return { ...doc(), report }; }
     if (method === 'svg') return renderScene(S.scene, { dataAttrs: false, animate: false });
     if (method === 'png') return opaquePng(S.scene, renderScene);

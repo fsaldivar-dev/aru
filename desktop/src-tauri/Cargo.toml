@@ -1,6 +1,6 @@
 [package]
 name = "aru-studio"
-version = "0.1.0"
+version = "0.7.0"
 description = "ARU Studio: layered, AI-first vector editor"
 edition = "2021"
 

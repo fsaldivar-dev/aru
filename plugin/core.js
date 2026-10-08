@@ -1,6 +1,9 @@
+import { listResources, RESOURCE_POLICY } from '../src/resources.js';
 import { previewRefinement } from '../src/refinement.js';
+import { projectContext } from '../src/workspace-context.js';
 import { listMaterials } from '../src/materials.js';
 import { freeTranslation } from './layout.js';
+import { invalidateSceneIndex } from '../src/scene-index.js';
 import { compile } from '../src/engine.js';
 import { toAru } from '../src/serialize.js';
 import { previewBatch } from '../src/batch.js';
@@ -12,8 +15,8 @@ import { withOpaqueBackground } from '../src/opaque.js';
 import { ANSWER_SCHEMA, systemPrompt } from '../src/agents.js';
 export const EMPTY_DOCUMENT = 'canvas 800 600\nbackground #FFFFFF\n';
 export class AruError extends Error { constructor(message, details = null) { super(message); this.name = 'AruError'; this.details = details; } }
-export function readDocument(text) {
-  const r = compile(text);
+export function readDocument(text, options) {
+  const r = compile(text, options);
   if (!r.scene || r.errors.length) throw new AruError('Documento ARU inválido', r.errors);
   return r;
 }
@@ -34,50 +37,56 @@ export function boundsOf(n) {
 function transformedBounds(n, b) {
   return [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]].map(([x, y]) => applyTransform(n, x, y)).reduce((a, [x, y]) => union(a, [x, y, x, y]), null);
 }
-export function documentContext(text, { name = 'Sin título', selection = [], measureBounds } = {}) {
-  const { scene, warnings } = readDocument(text), layers = [];
+export function documentContext(text, options = {}) {
+  return sceneContext(readDocument(text).scene, options);
+}
+// The live editor already owns a validated scene; context must not parse the document again.
+export function sceneContext(scene, { name = 'Sin título', selection = [], project = null, measureBounds } = {}) {
+  const warnings = scene.warnings, layers = [];
   function walk(parent, chain = [], locked = false) {
     for (const n of parent.children) {
       let bounds = measureBounds?.(n);
       if (!bounds) { bounds = boundsOf(n); for (const a of [n, ...chain]) bounds = transformedBounds(a, bounds); }
       const cmds = n.geom?.commands || [];
       layers.push({ path: n.path, parent: parent.path || null, type: n.type, label: n.label || n.name,
-        semantic: n.semantic || null, role: n.role || null, locked: !!(locked || n.locked), hidden: !!n.hidden,
+        resource: n.resource ? structuredClone(n.resource) : null, semantic: n.semantic || null, role: n.role || null, locked: !!(locked || n.locked), hidden: !!n.hidden,
         fill: n.fill ?? null, opacity: n.opacity, bounds: bounds.map(v => Math.round(v * 100) / 100),
         ...(n.type === 'path' ? { pathInfo: { commands: cmds.length, subpaths: cmds.filter(c => c.cmd === 'move').length, closed: cmds.some(c => c.cmd === 'close'), verbs: [...new Set(cmds.map(c => c.cmd))] } } : {}) });
       walk(n, [n, ...chain], locked || n.locked);
     }
   }
   walk(scene.root);
-  return { version: 1, name, canvas: { width: scene.width, height: scene.height, background: scene.background }, selection: selection.filter(p => scene.byPath.has(p)), layers, materials: listMaterials(), warnings, boundsMode: measureBounds ? 'measured' : 'conservative',
-    instructions: 'Consulta contexto y render antes de editar. Usa paths o selectores part:, role:, type:, semantic:, name:; selection requiere selección explícita. Usa referencia para ilustrar desde una base. Los grupos conservan capas editables. Simplifica antes de suavizar. No modifiques capas bloqueadas. PNG siempre tiene fondo opaco.', tools: ['apply', 'preview', 'insert', 'trace', 'render', 'ask', 'refine', 'export-icons'], schema: ANSWER_SCHEMA };
+  return { version: 1, name, project:projectContext(project), canvas: { width: scene.width, height: scene.height, background: scene.background }, selection: selection.filter(p => scene.byPath.has(p)), layers, resources: listResources(scene), materials: listMaterials(), warnings, boundsMode: measureBounds ? 'measured' : 'conservative',
+    instructions: RESOURCE_POLICY + '\nConsulta contexto y render antes de editar. Usa paths o selectores part:, role:, type:, semantic:, name:; selection requiere selección explícita. Usa referencia para ilustrar desde una base. Los grupos conservan capas editables. Simplifica antes de suavizar. No modifiques capas bloqueadas. PNG siempre tiene fondo opaco.', tools: ['apply', 'preview', 'insert', 'trace', 'render', 'ask', 'refine', 'export-icons'], schema: ANSWER_SCHEMA };
 }
 export function contextPrompt(context) { return `Document context (JSON):\n${JSON.stringify(context)}\nBounds are ${context.boundsMode}; inspect the rendered canvas for visual decisions.`; }
 export { ANSWER_SCHEMA, systemPrompt };
-export function createIllustrator({ text = EMPTY_DOCUMENT, name = 'Sin título', selection = [], onChange = () => {}, measureBounds } = {}) {
-  readDocument(text);
+export function createIllustrator({ text = EMPTY_DOCUMENT, name = 'Sin título', project = null, selection = [], onChange = () => {}, measureBounds } = {}) {
+  project=projectContext(project);
+  let prepared = readDocument(text);
   let current = text, selected = selection.slice(), past = [], future = [], revision = 0;
   const replace = (next, record = true) => {
-    readDocument(next);
-    if (next !== current) { if (record) { past.push(current); if (past.length > 200) past.shift(); future = []; } current = next; revision++; selected = selected.filter(p => readDocument(current).scene.byPath.has(p)); onChange({ text: current, revision }); }
+    const nextDocument = readDocument(next);
+    if (next !== current) { if (record) { past.push(current); if (past.length > 200) past.shift(); future = []; } current = next; revision++; prepared = nextDocument; selected = selected.filter(p => prepared.scene.byPath.has(p)); onChange({ text: current, revision }); }
     return { text: current, revision };
   };
   const api = {
     replacePrepared: next => replace(next),
     getDocument: () => ({ text: current, name, revision }),
     load(next, options = {}) { readDocument(next); name = options.name || name; selected = []; past = []; future = []; return replace(next, false); },
-    select(paths) { const scene = readDocument(current).scene; if (!Array.isArray(paths) || paths.some(p => !scene.byPath.has(p))) throw new AruError('Selección inválida'); selected = paths.slice(); return selected; },
-    context: () => ({ ...documentContext(current, { name, selection: selected, measureBounds }), revision }),
+    select(paths) { const scene = prepared.scene; if (!Array.isArray(paths) || paths.some(p => !scene.byPath.has(p))) throw new AruError('Selección inválida'); selected = paths.slice(); return selected; },
+    setProject: next => {project=projectContext(next);revision++;return structuredClone(project);},
+    context: () => ({ ...sceneContext(prepared.scene, { name, project, selection: selected, measureBounds }), revision }),
     preview(operations) {
       if (!Array.isArray(operations)) throw new AruError('operations debe ser un array');
-      const sc = readDocument(current).scene;
+      const sc = prepared.scene;
       for (const op of operations) {
-        for (const target of [op?.target, op?.other].filter(Boolean)) {
+        for (const target of [op?.target, ...(op?.op === 'reuse' ? [] : [op?.other])].filter(Boolean)) {
           const ns = target === 'selection' ? selected.map(p => sc.byPath.get(p)) : sc.byPath.has(target) ? [sc.byPath.get(target)] : selectNodes(sc, target);
           for (const n of ns.filter(Boolean)) { let a = n; while (a && a !== sc.root) { if (a.locked && !(a === n && op.op === 'set' && op.locked === false && Object.keys(op).every(k => ['op', 'target', 'locked'].includes(k)))) throw new AruError(`Capa bloqueada: ${n.path}`); a = parentOf(sc, a); } }
         }
       }
-      const r = previewBatch(current, operations, selected);
+      const r = previewBatch(current, operations, selected, operations.some(o=>o.op==='reuse'||o.resource) ? {precision:null} : {});
       if (r.log.some(l => !l.ok)) throw new AruError('Lote rechazado; no se aplicó ningún cambio', r.log);
       return { text: r.text, log: r.log, svg: renderScene(r.scene, { dataAttrs: false, animate: false }) };
     },
@@ -97,10 +106,10 @@ export function createIllustrator({ text = EMPTY_DOCUMENT, name = 'Sin título',
       const added = insertFragment(scene, fragment, { label, at, scale });
       if (fit) { const box = transformedBounds(added, boundsOf(added)), others = scene.root.children.filter(n => n !== added && !n.hidden).map(n => transformedBounds(n, boundsOf(n))); const [mx, my] = freeTranslation(box, others, scene); added.at = [added.at[0] + mx, added.at[1] + my]; const b = boundsOf(scene.root); const dx = b[0] < 0 ? Math.round(40 - b[0]) : 0, dy = b[1] < 0 ? Math.round(40 - b[1]) : 0; for (const n of scene.root.children) n.at = [n.at[0] + dx, n.at[1] + dy]; scene.width = Math.ceil(Math.max(scene.width, b[2] + dx + 40)); scene.height = Math.ceil(Math.max(scene.height, b[3] + dy + 40)); }
       const result = replace(toAru(scene));
-      selected = readDocument(current).scene.root.children.filter(n => n.name === added.name).map(n => n.path);
+      selected = prepared.scene.root.children.filter(n => n.name === added.name).map(n => n.path);
       return { ...result, selection: selected };
     },
-    svg: ({ animate = false } = {}) => renderScene(readDocument(current).scene, { dataAttrs: false, animate }),
+    svg: ({ animate = false } = {}) => renderScene(prepared.scene, { dataAttrs: false, animate }),
     undo() { if (!past.length) return false; future.push(current); replace(past.pop(), false); return true; },
     redo() { if (!future.length) return false; past.push(current); replace(future.pop(), false); return true; },
   };
@@ -123,5 +132,5 @@ export function insertInto(scene, fragment, path, label = 'Capa IA') {
   scene.root.children.splice(scene.root.children.indexOf(added), 1);
   const angle = -rotation * Math.PI / 180;
   added.name = uniqueName(target, label); added.label = label; added.at = [(-tx * Math.cos(angle) + ty * Math.sin(angle)) / scale, (-tx * Math.sin(angle) - ty * Math.cos(angle)) / scale]; added.scale = [1 / scale, 1 / scale]; added.rotate = -rotation;
-  target.children.push(added); return added;
+  target.children.push(added); invalidateSceneIndex(scene); return added;
 }

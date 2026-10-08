@@ -5,7 +5,8 @@ import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
-const tarball = path.resolve(process.argv[2] || 'artifacts/fsaldivar.dev-aru-0.6.0.tgz');
+const version=JSON.parse(await fs.readFile(new URL('../package.json',import.meta.url))).version;
+const tarball = path.resolve(process.argv[2] || `artifacts/fsaldivar.dev-aru-${version}.tgz`);
 const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'aru-packed-'));
 await fs.writeFile(path.join(dir, 'package.json'), '{"private":true,"type":"module"}');
 const installed = spawnSync('npm', ['install', '--no-audit', '--no-fund', tarball], { cwd: dir, encoding: 'utf8' });
@@ -30,10 +31,12 @@ const { data, info } = await sharp(path.join(dir, 'result.png')).ensureAlpha().r
 assert.equal(info.width, 320); for (let i = 3; i < data.length; i += 4) assert.equal(data[i], 255);
 const core = await import(pathToFileURL(path.join(pkg, 'plugin/index.js'))), node = await import(pathToFileURL(path.join(pkg, 'plugin/node.js')));
 const session = core.createIllustrator();
+session.setProject({name:'Installed project'});assert.equal(session.context().project.name,'Installed project');
+assert.equal(cli(['context',file,'--project','CLI project']).project.name,'CLI project');
 const image = await sharp(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="white"/><circle cx="40" cy="40" r="25" fill="#245747"/></svg>')).png().toBuffer();
 await node.traceInto(session, image, { label: 'Base', backdrop: { shape: 'squircle', style: 'glyph', color: '#C8643A', glyphColor: '#FFFFFF' } });
 assert(session.context().layers.some(l => l.semantic === 'illustration.background'));
-const styles = cli(['styles']); assert(styles.styles.some(s => s.id === 'funky-seasons')); assert(node.resolveStyle('Frutiger Aero').avoid.includes('Burbujas acuáticas'));
+const styles = cli(['styles']); assert.equal(styles.styles.length,23); assert(styles.styles.some(s => s.id === 'funky-seasons')); assert(styles.styles.some(s => s.id === 'outline-rounded')); assert(node.resolveStyle('Frutiger Aero').avoid.includes('Burbujas acuáticas'));
 assert(typeof core.mountEditor === 'function');
 const packText='canvas 100 24\nbackground none\ngroup pack { semantic ui.iconpack; group inicio { path techo { move 3 12; line 12 3; line 21 12; fill none; stroke #234 2 } } group buscar { at 40 0; circle aro { at 12 12; radius 7; fill none; stroke #234 2 } } }';
 const protectedBase=core.createIllustrator({text:packText,selection:['pack.inicio']});
@@ -44,19 +47,35 @@ const archive=await node.exportIconArchive(packText,{sizes:[24,48]});assert.equa
 const packFile=path.join(dir,'pack.aru');await fs.writeFile(packFile,packText);
 assert.equal(cli(['export-icons',packFile,'--out','icons.zip']).count,2);
 assert(typeof core.prepareIconExports==='function');
+
+const resourceSession=core.createIllustrator({text:packText});
+resourceSession.apply([{op:'set',target:'pack.inicio',resource:{key:'demo.home',kind:'ui-icon',brand:'Demo',purpose:'Navegar al inicio',tags:['navegación'],identity:'Techo de trazo fino',reusable:true}}]);
+resourceSession.apply([{op:'reuse',other:'resource:demo.home',target:'root',x:80,y:40,scale:2}]);
+assert.equal(resourceSession.context().resources.length,2);
+assert.equal(resourceSession.context().resources.find(r=>r.source==='demo.home').key,undefined);
+const resourceFile=path.join(dir,'resources.aru');await fs.writeFile(resourceFile,resourceSession.getDocument().text);
+assert.equal(cli(['resources',resourceFile,'--tag','navegación','--brand','Demo']).resources.length,2);
+assert.equal(cli(['context',resourceFile]).resources[0].identity,'Techo de trazo fino');
+resourceSession.undo();assert.equal(resourceSession.context().resources.length,1);
+
 assert.equal(core.listMaterials().length,5);
 const materialBase=core.createIllustrator({text:packText,selection:['pack']});
 materialBase.refine([{op:'material',target:'selection',preset:'chrome'}]);
 assert(materialBase.svg().includes('gradientUnits="userSpaceOnUse"'));materialBase.undo();assert.equal(materialBase.getDocument().text,packText);
 assert.equal(cli(['materials']).materials.length,5);
 assert(cli(['material',packFile,'--select','pack','--style','fruits','--out','fruits.aru']).report.geometryPreserved);
-const productionSession=core.createIllustrator(),job=node.createIconJob('Crea 25 iconos');let created=0;
-const result=await node.produceIcons(productionSession,{job,transport:{run:async req=>{
+const productionSession=core.createIllustrator(),job=node.createIconJob('Crea 25 iconos',{style:'Material 3',material:'fruits',color:'#2463EB',accent:'#FFD426',purpose:'Automatización móvil'});let created=0;
+const result=await node.produceIcons(productionSession,{job,review:0,transport:{run:async req=>{
+  assert.match(req.prompt,/Automatización móvil/);assert.match(req.prompt,/#2463EB/);
   const count=Number(/EXACTLY (\d+)/.exec(req.prompt)[1]);
   const icons=Array.from({length:count},()=>{const i=created++;return {label:'Action '+i,purpose:'Distinct function '+i,aru:Array.from({length:9},(_,bit)=>`line p${bit} { from 4 ${3+bit*2}; to ${i&(1<<bit)?18:8} ${3+bit*2}; stroke #604631 1 }`).join('\n')};});
   return {ok:true,stdout:JSON.stringify({structured_output:{icons}})};
 }}});
 assert(result.report.complete);assert.equal(node.verifyIconJob(job,productionSession.getDocument().text),25);
+productionSession.select([job.id]);productionSession.refine([{op:'palette',target:'selection',color:'#334499',accent:'#FFD426',material:'fruits'}]);
+assert.equal(node.productionStatus(job,productionSession.getDocument().text).status,'complete');
+const jobFile=path.join(dir,'job.json');await fs.writeFile(jobFile,JSON.stringify(job));await fs.writeFile(packFile,productionSession.getDocument().text);assert.equal(cli(['inventory',packFile,'--job',jobFile]).count,25);
+assert(typeof node.revalidateIconJob==='function');productionSession.undo();
 productionSession.undo();assert.throws(()=>node.verifyIconJob(job,productionSession.getDocument().text));
 
-console.log(JSON.stringify({ ok: true, consumer: dir, tests: ['installed-cli', 'invalid-batch-atomic', 'dry-run', 'preview', 'hash-conflict', 'stdin-json', 'opaque-png', 'browser-safe-entry', 'installed-node-reference-glyph', 'installed-style-catalog', 'installed-protected-refinement', 'installed-icon-zip-cli-api', 'installed-material-cli-api', 'installed-production-loop'] }, null, 2));
+console.log(JSON.stringify({ ok: true, consumer: dir, tests: ['installed-cli', 'invalid-batch-atomic', 'dry-run', 'preview', 'hash-conflict', 'stdin-json', 'opaque-png', 'browser-safe-entry', 'installed-node-reference-glyph', 'installed-style-catalog', 'installed-protected-refinement', 'installed-icon-zip-cli-api', 'installed-material-cli-api', 'installed-production-loop','installed-palette-inventory-cli-api','installed-resource-identity-reuse-cli-api'] }, null, 2));

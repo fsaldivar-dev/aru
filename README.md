@@ -62,6 +62,16 @@ aru material icono.aru --select simbolo --style chrome --out cromado.aru
 
 El catálogo incluye Material 3, Apple minimalista, Y2K, Frutiger Aero y Funky Seasons, entre otros perfiles. Los materiales editables incluyen neón, cromo, cristal, clay y fruits. El descubrimiento remoto requiere Claude CLI y GitHub CLI; las referencias guardan procedencia y licencia declarada.
 
+## Recursos con identidad
+
+Registra propósito, marca, tags y reglas de identidad desde Propiedades. El catálogo Recursos permite encontrarlos y reutilizarlos; la IA recibe esas fichas con el contexto del documento. Reutilizar copia la geometría editable y conserva la procedencia, sin volver a dibujar el logo o símbolo.
+
+```sh
+aru resources ilustracion.aru --brand Musaru --tag vinilo
+```
+
+Las copias son independientes y el catálogo pertenece al documento actual. Consulta las operaciones `set` con `resource` y `reuse` en la [API](docs/plugin.md).
+
 ## Editor embebido y API
 
 La entrada principal funciona en el navegador; `@fsaldivar.dev/aru/node` añade archivos, rasterización y ejecución de agentes.
@@ -69,12 +79,12 @@ La entrada principal funciona en el navegador; `@fsaldivar.dev/aru/node` añade 
 ```js
 import { createIllustrator, mountEditor } from '@fsaldivar.dev/aru';
 
-const document = createIllustrator();
-console.log(document.context());
+const illustrator = createIllustrator();
+console.log(illustrator.context());
 
 const editor = mountEditor(document.querySelector('#editor'), {
   studioUrl: '/aru/index.html',
-  text: document.getDocument().text,
+  text: illustrator.getDocument().text,
   onChange: state => guardarDocumento(state),
   onProduction: checkpoint => guardarCheckpoint(checkpoint),
 });
@@ -83,6 +93,7 @@ await editor.ready;
 
 El contenedor necesita altura explícita. Sirve `index.html` y las carpetas `src`, `plugin`, `trace`, `vision` y `examples` del paquete conservando su estructura. El host controla la persistencia y proporciona el transporte de IA si quiere habilitar el asistente. El editor se monta en un iframe para aislar su interfaz.
 
+- [Cambios de la versión 0.7.0](CHANGELOG.md)
 - [Integración, API y CLI](docs/plugin.md)
 - [Producción, pausas, reanudación y exportación](docs/produccion-iconos.md)
 - [Perfiles de estilo](docs/estilos.md)

@@ -1,6 +1,6 @@
 {
   "name": "@fsaldivar.dev/aru",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "module",
   "scripts": {
     "serve": "node tools/serve.mjs 8787",
@@ -12,11 +12,26 @@
   },
   "description": "ARU Studio: editable reference illustration engine, embeddable editor and AI CLI",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/fsaldivar-dev/aru.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fsaldivar-dev/aru.git"
+  },
   "homepage": "https://github.com/fsaldivar-dev/aru#readme",
-  "bugs": { "url": "https://github.com/fsaldivar-dev/aru/issues" },
-  "publishConfig": { "access": "public" },
-  "keywords": ["illustration", "editor", "icons", "ai", "cli", "vector", "reference-tracing"],
+  "bugs": {
+    "url": "https://github.com/fsaldivar-dev/aru/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "illustration",
+    "editor",
+    "icons",
+    "ai",
+    "cli",
+    "vector",
+    "reference-tracing"
+  ],
   "engines": {
     "node": ">=22"
   },
@@ -47,12 +62,15 @@
     "lab.html",
     "examples",
     "tools/agents-bridge.mjs",
+    "tools/model-catalog.mjs",
     "tools/serve.mjs",
     "docs/plugin.md",
     "docs/estilos.md",
     "docs/produccion-iconos.md",
     "docs/trazos-editables.md",
-    "README.md"
+    "docs/qa-produccion-0.7.md",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "dependencies": {
     "sharp": "0.35.5"

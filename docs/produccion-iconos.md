@@ -39,6 +39,30 @@ En el editor embebido, `editor.ask()` comparte el mismo flujo. `onProduction({jo
 
 Solo cuentan dibujos compilables, visibles, con nombre y propósito y que caben en una celda local de 24 px. Se rechazan nombres repetidos, geometría idéntica aunque cambien el nombre/color y siluetas rasterizadas idénticas a 32 px. La IA recibe el inventario acumulado y tres dibujos aceptados para mantener el estilo. Los rechazos se incluyen en la siguiente solicitud.
 
-Estas comprobaciones no garantizan que dos conceptos parecidos sean distintos semánticamente, ni sustituyen una revisión humana del reconocimiento y la coherencia del estilo. La producción valida cantidades y dibujos; las revisiones ciegas del flujo de un solo pack siguen siendo una etapa de calidad independiente.
+Estas comprobaciones no garantizan que dos conceptos parecidos sean distintos semánticamente, ni sustituyen una revisión humana del reconocimiento y la coherencia del estilo. Con revisión activada y un estilo, material o propósito definido, cada lote se muestra a la IA a 72 y 24 px antes de guardarlo. Debe aprobar estilo, propósito y legibilidad; tras tres rechazos se pausa con la razón. `--review 0` omite esta evaluación. Sigue siendo una evaluación de IA, no una garantía estética.
 
-Si el documento cambia durante una llamada, se descarta esa entrega. Si se modifica o deshace el pack después de guardarlo, la reanudación se bloquea hasta restaurar el documento del checkpoint. Ninguna pausa equivale a «completo».
+Si el documento cambia durante una llamada, se descarta esa entrega. Cambiar pintura, nombres, posición de los iconos o capas ajenas conserva el inventario. Eliminar piezas, añadir grupos o cambiar su geometría exige **Revalidar inventario**: conserva los dibujos actuales, registra los válidos y continúa únicamente los huecos pendientes. Si se repiten piezas o exceden el objetivo, la revalidación se rechaza con el motivo. Ninguna pausa equivale a «completo».
+
+
+## Brief e inventario (0.7.0)
+
+Studio, la CLI y el editor embebido comparten 22 perfiles en **Estilo** y cinco recetas de acabado en **Material**. Material 3 y Apple son direcciones de apariencia; Fruits es un acabado calculado por el motor. Puedes combinarlos. Los campos Color y Acento aplican respectivamente el trazo y el relleno; no convierten un hueco en relleno. Si una forma tiene un solo canal activo, ese canal mantiene su función. El brief guarda propósito, perfil, receta, paleta e historial y se reutiliza en cada lote y al reanudar.
+
+```sh
+aru produce base.aru --message "Crea 300 iconos nuevos de automatización móvil" \
+  --style "Material 3" --material fruits --color '#2463EB' --accent '#FFD426' \
+  --purpose "Automatizar acciones del móvil" --job job.json --out pack.aru
+aru inventory pack.aru --job job.json
+aru palette pack.aru --select production_ID --color '#3355FF' --accent '#FFD426' --material fruits --out azul.aru
+aru produce base.aru --job job.json --out pack.aru --resume
+```
+
+Por defecto, un pedido de 300 significa **300 adicionales**; los packs previos se inventarían para evitar repetir sus nombres y siluetas. `--count-mode total` descuenta los previos, al igual que «300 iconos en total». El panel muestra previos, nuevos y total, calculados por el motor.
+
+Aplicar paleta o material al pack completo desde Studio o el editor embebido actualiza también su brief; las piezas pendientes siguen ese acabado. En CLI y Node, después de repintar el documento, pasa la nueva paleta al reanudar: `produce ... --resume --material fruits --color '#2463EB'`, o `produceIcons(session,{job,material:'fruits',color:'#2463EB'})`. El objetivo original se conserva.
+
+El chat usa una superficie de desplazamiento para ajustes, inventario y conversación. El compositor tiene su propia fila y muestra «Detener» durante una solicitud. Ocultar el panel izquierdo en una ventana estrecha conserva la columna del chat y el lienzo.
+
+Para aceptar cambios geométricos propios: `aru inventory pack.aru --job job.json --revalidate`, o `produce ... --resume --revalidate`. El documento no se reconstruye desde una versión antigua. El host embebido puede llamar `revalidateProduction(job)` y guardar el checkpoint devuelto. En Node: `productionStatus(job,text)` consulta; `revalidateIconJob(job,text,{rasterize})` reconcilia explícitamente.
+
+La exportación ZIP admite hasta 1000 piezas y conserva la protección de 64 millones de píxeles por exportación. Un lote de 300 o 320 ya no choca con el antiguo límite de 250. El render de PNG y el zoom del lienzo calculan filtros a la resolución visible, evitando ampliar un bitmap pequeño.

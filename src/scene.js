@@ -1,3 +1,4 @@
+import { normalizeResource } from './resources.js';
 // Scene graph builder: AST -> Scene (plain data, no rendering).
 // Expands repeat / clone / define, evaluates expressions, resolves gradients, sorts layers,
 // and runs generators (fur) so the scene contains concrete geometry only.
@@ -7,6 +8,7 @@ import { resolveBlueprint } from './blueprint.js';
 import { compileElement, scatterInstances, shapePolygon } from './procedural.js';
 import { rng, hashString } from './geom.js';
 import { parseAnimate } from './anim.js';
+import { invalidateSceneIndex } from './scene-index.js';
 
 const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
@@ -196,6 +198,7 @@ function applyProps(node, props, env) {
       case 'clip': node.clip = String(v[0]); break; // group: clip children to the named child shape
       case 'hidden': node.hidden = v[0] !== false && v[0] !== 0; break;
       case 'locked': node.locked = v[0] !== false && v[0] !== 0; break;
+      case 'resource': node.resource = normalizeResource(JSON.parse(String(v[0]))); break;
       case 'label': node.label = v.map(String).join(' '); break; // human name (spaces, accents); `name` stays the stable id
       case 'animate': { const r = parseAnimate(v); if (r.error) scene.warnings.push(warn(r.error, p)); else node.animate = r.anim; break; }
       case 'param': break; // handled when the define is cloned
@@ -548,7 +551,7 @@ export function materialize(ir, parent, env) {
     return g;
   }
   const n = newNode(scene, ir.type, ir.name, parent, env, null);
-  for (const k of ['at', 'rotate', 'scale', 'fill', 'stroke', 'strokeWidth', 'opacity', 'cap', 'join', 'clip', 'semantic', 'role', 'fillOpacity', 'meta', 'label', 'animate', 'hidden', 'locked', 'shadow', 'inner']) if (ir[k] !== undefined) n[k] = ir[k];
+  for (const k of ['at', 'rotate', 'scale', 'fill', 'stroke', 'strokeWidth', 'opacity', 'cap', 'join', 'clip', 'semantic', 'role', 'fillOpacity', 'meta', 'resource', 'label', 'animate', 'hidden', 'locked', 'shadow', 'inner']) if (ir[k] !== undefined) n[k] = ir[k];
   if (ir.geom) n.geom = { ...n.geom, ...ir.geom };
   for (const c of ir.children || []) materialize(c, n, env);
   parent.children.push(n);
@@ -571,6 +574,7 @@ export function updateBlueprint(scene, name, change) {
     unregister(scene, old);
     compileAndMount(rt, el, parent, idx);
   }
+  invalidateSceneIndex(scene);
   return { changed: [...keys], recompiled: affected.map((e) => e.name), total: rt.bp.elements.length, ms: nowMs() - t0 };
 }
 
@@ -582,7 +586,7 @@ function buildScatter(ast, parent, env) {
   if (!target) { scene.errors.push(warn(`scatter: 'inside' must name a previously declared sibling shape`, ast)); return; }
   const g = newNode(scene, 'group', ast.name || 'scatter', parent, env, ast);
   g.source = { line: ast.line };
-  for (const p of ast.props) if (['layer', 'semantic', 'role', 'opacity', 'label', 'animate', 'hidden', 'locked', 'shadow', 'inner'].includes(p.key)) applyProps(g, [p], env);
+  for (const p of ast.props) if (['layer', 'semantic', 'role', 'opacity', 'resource', 'label', 'animate', 'hidden', 'locked', 'shadow', 'inner'].includes(p.key)) applyProps(g, [p], env);
   parent.children.push(g);
   const r = rng(hashString(ast.name || 'scatter') + Math.round(P.val('seed', 1) * 7919));
   const inst = scatterInstances(P, shapePolygon(target), r, ast.children, ast.name || 'item');

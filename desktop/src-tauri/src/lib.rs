@@ -23,7 +23,28 @@ const AGENTS: [(&str, &str, &str); 4] = [("claude", "Claude", "claude"), ("codex
 const TIMEOUT: Duration = Duration::from_secs(6 * 60);
 
 #[derive(Serialize, Clone)]
-struct Agent { id: String, name: String, bin: String, installed: bool, path: Option<String>, version: Option<String> }
+struct Agent { id: String, name: String, bin: String, installed: bool, path: Option<String>, version: Option<String>, models: Vec<AgentModel>, #[serde(rename="modelSource")] model_source: String }
+
+#[derive(Serialize, Clone)]
+struct AgentModel { id: String, label: String }
+fn catalog_models(cache: &serde_json::Value) -> Vec<AgentModel> {
+    let mut seen=HashSet::new();
+    cache.get("models").and_then(|v|v.as_array()).map(|items|items.iter().filter_map(|m|{
+        let id=m.get("slug")?.as_str()?;
+        if m.get("visibility").and_then(|v|v.as_str())!=Some("list") || id.is_empty() || id.len()>64 || !id.chars().all(|c|c.is_ascii_alphanumeric() || "._:/-".contains(c)) || !seen.insert(id.to_string()) {return None;}
+        Some(AgentModel{id:id.into(),label:m.get("display_name").and_then(|v|v.as_str()).unwrap_or(id).into()})
+    }).collect()).unwrap_or_default()
+}
+fn model_metadata(mut agent: Agent) -> Agent {
+    if agent.id=="codex" {
+        let home=std::env::var_os("CODEX_HOME").map(PathBuf::from).or_else(||std::env::var_os("HOME").map(|h|PathBuf::from(h).join(".codex")));
+        if let Some(cache)=home.and_then(|h|fs::read_to_string(h.join("models_cache.json")).ok()).and_then(|s|serde_json::from_str::<serde_json::Value>(&s).ok()) {
+            agent.models=catalog_models(&cache);
+            if !agent.models.is_empty() {agent.model_source="local-cache".into();}
+        }
+    }
+    agent
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -61,15 +82,15 @@ fn path_env(path: &[PathBuf]) -> String { path.iter().map(|p| p.to_string_lossy(
 
 #[tauri::command]
 fn agents_detect(bridge: State<'_, Arc<Bridge>>) -> Vec<Agent> {
-    if let Some(list) = bridge.detected.lock().unwrap().clone() { return list; }
+    if let Some(list) = bridge.detected.lock().unwrap().clone() { return list.into_iter().map(model_metadata).collect(); }
     let list: Vec<Agent> = AGENTS.iter().map(|(id, name, bin)| {
         let p = resolve(&bridge.path, bin);
         let version = p.as_ref().and_then(|p| Command::new(p).arg("--version").env("PATH", path_env(&bridge.path)).stdin(Stdio::null()).output().ok())
             .map(|o| String::from_utf8_lossy(&o.stdout).lines().next().unwrap_or("").trim().to_string()).filter(|v| !v.is_empty());
-        Agent { id: id.to_string(), name: name.to_string(), bin: bin.to_string(), installed: p.is_some(), path: p.map(|p| p.to_string_lossy().into_owned()), version }
+        Agent { id: id.to_string(), name: name.to_string(), bin: bin.to_string(), installed: p.is_some(), path: p.map(|p| p.to_string_lossy().into_owned()), version, models:Vec::new(), model_source:String::new() }
     }).collect();
     *bridge.detected.lock().unwrap() = Some(list.clone());
-    list
+    list.into_iter().map(model_metadata).collect()
 }
 
 // fixed argument templates per CLI -> (args, stdin, output file)
@@ -323,6 +344,12 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn model_catalog_excludes_hidden_and_private_metadata() {
+        let cache=serde_json::json!({"identity":"private","models":[{"slug":"visible","display_name":"Visible","visibility":"list"},{"slug":"hidden","visibility":"hide"},{"slug":"visible","visibility":"list"},{"slug":"bad model","visibility":"list"}]});
+        let models=catalog_models(&cache);assert_eq!(models.len(),1);assert_eq!(models[0].id,"visible");assert_eq!(models[0].label,"Visible");
+        assert!(catalog_models(&serde_json::json!({})).is_empty());
+    }
     #[test]
     fn png_export_writes_binary_and_rejects_invalid_payloads() {
         let path = std::env::temp_dir().join(format!("aru-png-test-{}.png", std::process::id()));

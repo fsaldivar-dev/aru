@@ -1,5 +1,5 @@
 // Isolated editor mount. The host owns persistence and supplies the agent transport.
-export function mountEditor(container, { text, name = 'Sin título', studioUrl = new URL('../index.html', import.meta.url), onChange = () => {}, onProduction = () => {}, agents, timeout = 120000 } = {}) {
+export function mountEditor(container, { text, name = 'Sin título', project, studioUrl = new URL('../index.html', import.meta.url), onChange = () => {}, onProduction = () => {}, agents, timeout = 120000 } = {}) {
   if (!container?.appendChild) throw new TypeError('Se necesita un elemento contenedor');
   const channel = crypto.randomUUID(), url = new URL(studioUrl, location.href);
   if (!/^https?:$/.test(url.protocol) || location.origin === 'null') throw new Error('Sirve el editor por HTTP(S)');
@@ -19,7 +19,7 @@ export function mountEditor(container, { text, name = 'Sin título', studioUrl =
     if (destroyed || event.source !== frame.contentWindow || event.origin !== url.origin || m?.channel !== channel) return;
     if (m.type === 'ready') {
       clearTimeout(readyTimer);
-      try { if (text !== undefined) await request('load', { text, name }); readyResolve(api); } catch (e) { readyReject(e); }
+      try { if (text !== undefined) await request('load', { text, name }); if(project!==undefined) await request('project',{project});readyResolve(api); } catch (e) { readyReject(e); }
     } else if (m.type === 'production') {
       // A long job has one RPC response but many committed batches. Progress renews its lease.
       for (const p of pending.values()) if (['ask', 'resumeProduction'].includes(p.method)) { clearTimeout(p.timer); p.timer = setTimeout(p.expire, Math.max(timeout, 370000)); }
@@ -45,6 +45,7 @@ export function mountEditor(container, { text, name = 'Sin título', studioUrl =
     element: frame, ready,
     load: (text, name) => request('load', { text, name }),
     getDocument: () => request('document'), context: () => request('context'),
+    setProject: project => request('project',{project}),
     select: paths => request('select', { paths }),
     apply: (operations, options = {}) => request('apply', { operations, ...options }),
     refine: (operations, options = {}) => request('refine', { operations, ...options }),
@@ -55,6 +56,7 @@ export function mountEditor(container, { text, name = 'Sin título', studioUrl =
     ask: (message, options = {}) => request('ask', { message, options }),
     getProduction: () => request('production'),
     stopProduction: () => request('stopProduction'),
+    revalidateProduction: job => request('revalidateProduction',{job}),
     resumeProduction: job => request('resumeProduction', { job }),
     svg: () => request('svg'), png: () => request('png'), undo: () => request('undo'), redo: () => request('redo'),
     destroy() {

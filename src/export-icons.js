@@ -10,7 +10,7 @@ export function listIconBatches(text) {
   const { scene } = readDocument(text), result = [];
   walk(scene.root, n => {
     const icons = n.children?.filter(c => c.type === 'group' && !c.hidden) || [];
-    if (n !== scene.root && n.type === 'group' && !n.hidden && icons.length >= 2) result.push({ path: n.path, label: n.label || n.name, count: icons.length, explicit: n.semantic === 'ui.iconpack' || n.name === 'pack' });
+    if (n !== scene.root && n.type === 'group' && !n.hidden && (icons.length >= 2 || icons.length === 1 && n.semantic === 'ui.iconpack')) result.push({ path: n.path, label: n.label || n.name, count: icons.length, explicit: n.semantic === 'ui.iconpack' || n.name === 'pack' });
   });
   return result;
 }
@@ -25,7 +25,7 @@ export function prepareIconExports(text, { group, paths, sizes = [24, 48, 96], f
   if (group && (!batch || batch.type !== 'group')) throw new Error('No existe el grupo de iconos');
   if (paths && (!Array.isArray(paths) || !paths.length || new Set(paths).size !== paths.length)) throw new Error('Selecciona al menos un icono, sin duplicados');
   const icons = paths ? paths.map(p => scene.byPath.get(p)) : batch.children.filter(c => c.type === 'group' && !c.hidden);
-  if (!icons.length || icons.length > 250 || icons.some(n => !n || n.type !== 'group' || (batch && !batch.children.includes(n)))) throw new Error('El lote debe contener entre 1 y 250 grupos de iconos');
+  if (!icons.length || icons.length > 1000 || icons.some(n => !n || n.type !== 'group' || (batch && !batch.children.includes(n)))) throw new Error('El lote debe contener entre 1 y 1000 grupos de iconos');
   for (const n of icons) for (let a = n; a && a !== scene.root; a = parentOf(scene, a)) if (a.hidden) throw new Error(`Icono oculto: ${n.path}`);
   const used = new Set(), color = background || opaqueColor(scene.background);
   const entries = icons.map(icon => {

@@ -1,13 +1,13 @@
 # Editar una ilustración a partir de una base
 
-Primera entrega, 2026-10-07. La referencia convertida en capas es la base de trabajo. La IA elige la parte y la herramienta; el motor calcula las curvas y las coordenadas. Esta entrega permite limpiar contornos y unir extremos existentes. La reinterpretación de poses, expresiones y estilos mediante controles semánticos sigue pendiente.
+Primera entrega, 2026-10-07. La referencia convertida en capas es la base de trabajo. La IA elige la parte y la herramienta; el motor calcula las curvas y las coordenadas. Esta entrega permite limpiar contornos y unir extremos existentes. El modo **Redibujar formas** permite reinterpretar el contenido de los grupos seleccionados; los controles semánticos específicos de poses y expresiones siguen pendientes.
 
 ## Uso en Studio
 
 1. En **Proyectos → Plantillas**, abre **sajaru base editable** o **editar trazos**. La plantilla crea un documento independiente.
 2. Selecciona un path o un grupo. En **Propiedades → Afinar trazos**, usa **Simplificar…** o **Suavizar…**. La vista previa compara ambos resultados sin modificar el documento.
 3. Para controlar intensidad y tolerancia, abre **Código → Lote / IA**, pega operaciones y pulsa **Vista previa**. Si hay errores, la aplicación desde esta vista queda deshabilitada.
-4. El **Asistente** ejecuta las mismas herramientas con el modo ilustrador apagado. Con la opción **aplicar**, ejecuta la respuesta directamente con deshacer.
+4. El **Asistente → Refinar → Limpiar trazos** ejecuta las mismas herramientas sobre la selección, con deshacer. **Redibujar formas** reemplaza sus trazos internos para mejorar siluetas ambiguas, conservando identidad y posición. **Color y acabado** conserva la geometría; **Crear** añade dibujos nuevos y **Consultar** mantiene el lienzo en solo lectura.
 5. Los cambios se guardan como ARU y se pueden deshacer en un paso. Cancelar la comparación no modifica el documento ni el historial.
 
 El chat muestra los resultados medidos dentro del desplegable de operaciones. Una simplificación válida puede retirar **cero puntos**; eso no significa que haya limpiado la forma. Los resultados pasan también al contexto del siguiente pedido a la IA.

@@ -10,9 +10,9 @@ import * as E from './edit.js';
 import { refinePaths, joinPaths } from './path-edit.js';
 import { compile } from './engine.js';
 import { toAru } from './serialize.js';
-import { applyMaterial } from './materials.js';
+import { applyMaterial, applyPalette } from './materials.js';
 
-const SET_KEYS = ['label', 'fill', 'stroke', 'strokeWidth', 'opacity', 'hidden', 'locked', 'rotate', 'semantic', 'role', 'shadow', 'inner'];
+const SET_KEYS = ['label', 'fill', 'stroke', 'strokeWidth', 'opacity', 'hidden', 'locked', 'rotate', 'semantic', 'role', 'shadow', 'inner', 'resource'];
 // effects as text: "DX DY BLUR #COLOR OPACITY" ("none" clears); inner accepts two separated by "|"
 const parseFx = (t) => { const m = String(t).trim().match(/^(-?[\d.]+)\s+(-?[\d.]+)\s+([\d.]+)\s+(#[0-9a-f]{3,8})\s+([\d.]+)$/i); return m ? { dx: +m[1], dy: +m[2], blur: +m[3], color: m[4], opacity: Math.max(0, Math.min(1, +m[5])) } : null; };
 const val = (o, k) => (o[k] === null || o[k] === undefined ? undefined : o[k]);
@@ -34,11 +34,18 @@ export function applyBatch(scene, ops, { selection = [] } = {}) {
     const where = `#${k + 1} ${o?.op ?? '?'}`;
     try {
       if (!o || typeof o !== 'object' || !o.op) throw new Error('each operation needs an "op"');
-      const free = o.op === 'canvas' || (o.op === 'add' && (!o.target || o.target === 'root'));
+      const free = o.op === 'canvas' || (['add', 'reuse'].includes(o.op) && (!o.target || o.target === 'root'));
       const ids = free ? [] : resolve(scene, o.target ?? 'selection', selection);
       if (!ids.length && !free) throw new Error(`no layer matches '${o.target}'`);
       let detail = null;
       switch (o.op) {
+        case 'reuse': {
+          const sources = resolve(scene, o.other, selection);
+          if (sources.length !== 1) throw new Error('Reutilizar requiere un único recurso de origen');
+          if (!free && ids.length !== 1) throw new Error('Reutilizar requiere un único destino');
+          created.push(E.reuseResource(scene, scene.byId.get(sources[0]), free ? 'root' : scene.byId.get(ids[0]).path, { x: o.x ?? 0, y: o.y ?? 0, scale: o.scale ?? 1, label: o.label })); break;
+        }
+        case 'palette': detail = applyPalette(scene, ids, o); break;
         case 'material': detail = applyMaterial(scene, ids, o); break;
         case 'smooth': case 'simplify': detail = refinePaths(scene, ids, o.op, o); break;
         case 'weld': case 'connect': detail = joinPaths(scene, ids, resolve(scene, o.other, selection), o.op, o); break;

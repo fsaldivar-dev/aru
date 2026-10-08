@@ -6,6 +6,40 @@ El paquete `@fsaldivar.dev/aru` reúne el editor, el motor de documentos y el co
 
 Node 22 o superior para la CLI. El componente visual solo requiere un navegador moderno.
 
+### Explorar objetos en varias estéticas
+
+`explore-icons` busca y observa referencias de cada objeto antes de dibujar variantes independientes. Su uso predeterminado es **`ui-controls`**: recursos de interfaz para botones, selectores de instrumentos e indicadores de pista, dibujados en una cuadrícula óptica de 48 unidades y revisados a 24 y 32 px. No incluyen placa, fondo ni rótulo propio: esa superficie pertenece a la interfaz que los incorpora. No aplica filtros a una misma silueta: cada estética parte de un lienzo vacío y conserva el inventario de objetos observado. Este flujo está disponible en Node y CLI; todavía no está integrado en el chat del editor.
+
+```sh
+aru explore-icons \
+  --subjects "Guitarra eléctrica,Teclado musical,Maracas,Batería acústica" \
+  --styles "material-3-expressive,apple-minimal,frutiger-fruits,dark-aero,funky-seasons,y2k-chrome" \
+  --usage ui-controls \
+  --out exploracion-musical
+```
+
+La carpeta recibe las referencias elegidas con su procedencia, hojas de comparación opacas y documentos `.aru` editables. En `ui-controls`, cada recurso se exporta como SVG y PNG de 48, 32 y 24 px con exterior y huecos intencionales transparentes, colores interiores opacos y el suavizado normal del contorno. Cada PNG se renderiza directamente desde las curvas a su tamaño final. La revisión observa los iconos dentro de controles reales sobre superficies claras y oscuras. Con **`--usage illustrated`** se conserva el flujo de ilustraciones detalladas de 336 unidades, con fondos y exportaciones opacos.
+
+Cada propuesta se conserva como `round-1.aru/png` o `round-2.aru/png` antes de revisarla. `report.json` y `manifest.json` se actualizan durante la producción y no contienen imágenes en base64. Una revisión compara anatomía, propósito, estilo y legibilidad con las referencias; si falla, genera una nueva propuesta y la revisa una vez más. Los estilos rechazados o fallidos quedan identificados en el reporte parcial. Si falla el revisor, el dibujo válido queda disponible como pendiente. La CLI devuelve código 1 si hay resultados pendientes de revisión; no los presenta como terminados.
+
+```js
+import { exploreIconStyles } from '@fsaldivar.dev/aru/node';
+
+const report = await exploreIconStyles({
+  subjects: ['Guitarra eléctrica', 'Teclado musical', 'Maracas', 'Batería acústica'],
+  styles: ['material-3-expressive', 'frutiger-fruits'],
+  usage: 'ui-controls',
+  provider: 'claude',
+  outputDir: './exploracion-musical',
+  review: 1,
+  checkpoint: report => console.log(report.styles.map(style => style.status)),
+});
+```
+
+Admite de uno a cuatro objetos y hasta 22 estéticas del catálogo. Si falta una referencia útil de cualquier objeto, se detiene antes de dibujar. `discovery` permite reutilizar una investigación previa que incluya los píxeles originales, observaciones y hashes; los metadatos sin imágenes no bastan. `review: 0` omite la revisión y marca los resultados como `unreviewed`. La investigación usa los proveedores web del discovery de ARU y requiere un transporte compatible. El chequeo de estilos repetidos detecta geometría idéntica, pero no sustituye la revisión visual del usuario.
+
+Antes de revisar una propuesta generada, el motor comprueba que contenga dibujo visible y que no se recorte al exportar. Si un objeto se sale de su celda, ajusta todas sus piezas juntas mediante una traslación y, cuando hace falta, una escala uniforme. Conserva curvas, colores, materiales y fondo; registra el ajuste en `generation.layoutAdjustments`. La revisión recibe el encuadre corregido.
+
 ```sh
 npm install @fsaldivar.dev/aru
 npx aru help
@@ -24,6 +58,7 @@ import { mountEditor } from '@fsaldivar.dev/aru';
 const editor = mountEditor(document.querySelector('#ilustrador'), {
   studioUrl: '/aru/index.html',
   name: 'Mi ilustración',
+  project: { id: 'autopilot', name: 'AutoPilot', description: 'Automatización móvil' },
   text: documentoAru,
   onChange: ({ text, name, revision }) => guardarEnMiAplicacion(text, name, revision),
   agents: {
@@ -34,9 +69,9 @@ const editor = mountEditor(document.querySelector('#ilustrador'), {
   timeout: 120000,
 });
 await editor.ready;
-await editor.ask("Cambia el ojo a azul", { provider: "claude", review: 1 });
-const context = await editor.context();
 await editor.select(['personaje.ojo']);
+await editor.ask("Cambia el ojo a azul", { mode: "refine", refine: "style", provider: "claude", review: 1 });
+const context = await editor.context();
 const preview = await editor.preview([{ op: 'set', target: 'selection', fill: '#2277DD' }]);
 await editor.apply([{ op: 'set', target: 'selection', fill: '#2277DD' }], {
   expectedRevision: context.revision,
@@ -45,9 +80,58 @@ const pngDataUrl = await editor.png(); // PNG opaco
 editor.destroy();
 ```
 
-El contenedor necesita una altura explícita. `ready` confirma que el documento inicial está cargado. `getDocument`, `load`, `context`, `select`, `apply`, `preview`, `insert`, `trace`, `undo`, `redo`, `ask`, `svg`, `png` y `destroy` son la API pública. `trace` recibe `{ name, mime, data }`, donde `data` es base64 sin prefijo. Los métodos son asíncronos.
+El contenedor necesita una altura explícita. `ready` confirma que el documento inicial está cargado. `getDocument`, `load`, `context`, `setProject`, `select`, `apply`, `preview`, `insert`, `trace`, `undo`, `redo`, `ask`, `svg`, `png` y `destroy` son la API pública. `trace` recibe `{ name, mime, data }`, donde `data` es base64 sin prefijo. Los métodos son asíncronos.
+
+`await editor.setProject({ id, name, description })` actualiza el proyecto activo del anfitrión; `null` lo limpia. Se muestra junto al nombre del documento y se incorpora al contexto de cada consulta y lote. Cambiarlo cancela la producción en curso e invalida respuestas anteriores, sin modificar el dibujo. Los metadatos no implican haber leído otros archivos del proyecto. El motor sin interfaz admite la misma opción `project` y el método síncrono `setProject`; la CLI acepta `--project "AutoPilot"` para aportar el nombre en `context`, `ask` y `produce`.
+
+En Studio, seleccionar un proyecto abre su documento más reciente; un proyecto vacío abre el diálogo para crear uno. La barra sobre el lienzo indica siempre proyecto y documento. Sus botones colapsan Capas y Asistente de forma independiente; Studio conserva esa preferencia al recargar.
+
+En `Asistente IA → Motor y revisión`, el selector recuerda el modelo por proveedor y ofrece `Predeterminado del CLI` y `Otro modelo…`. Codex muestra los modelos visibles de su catálogo local cuando está disponible; los demás proveedores usan sus alias sugeridos. La disponibilidad efectiva depende del CLI y la cuenta. Un transporte embebido puede devolver `models: [{ id, label }]` y `modelSource` desde `detect()`. La selección se envía como `model` a `run()`.
 
 El host guarda el documento. En modo embebido ARU no abre su biblioteca ni escribe documentos, preferencias o conversaciones en localStorage. `onChange` incluye la carga inicial y cada cambio aceptado; si necesitas conservar conversaciones, corresponde hacerlo en el host. Los menús para crear/importar documentos quedan deshabilitados: usa `load` desde tu programa. El cambio de documento cancela la consulta de IA anterior. Los mensajes se validan por origen, ventana y canal. El transporte de agentes es responsabilidad del host; nunca expongas el puente de ejecución de CLIs directamente a Internet.
+
+### Crear, refinar o consultar
+
+El Asistente IA separa tres tareas:
+
+- **Crear:** elige Ilustración, Icono de app o Pack de iconos; indica el propósito y describe el resultado. Un pack requiere una cantidad entera de 1 a 1000. Esa cantidad cuenta piezas nuevas; si el mensaje pide otra cantidad, se debe corregir antes de enviar. La selección sirve de referencia y se conservan las formas y la apariencia de los dibujos existentes.
+- **Refinar:** selecciona las piezas que quieres mejorar. **Color y acabado** cambia su apariencia conservando las formas. **Limpiar trazos** ajusta las curvas existentes conservando colores, huecos y conexiones; no aplica ajustes de apariencia. **Redibujar formas** sustituye los trazos interiores del grupo seleccionado para mejorar su reconocimiento; mantiene su nombre, propósito, posición y las otras piezas.
+- **Consultar:** pregunta por el proyecto o el lienzo. Las respuestas no pueden modificar el documento.
+
+En Crear, **Estética** guía el lenguaje visual y **Acabado de superficie** añade efectos como Fruits, cromado o cristal al resultado nuevo. Cambiar estos controles no modifica el lienzo. En Refinar → Color y acabado, se aplican al enviar la solicitud sobre la selección; **Aplicar acabado ahora** aplica únicamente material y colores de forma directa, sin IA. La estética se interpreta al refinar. Un color de acento requiere también un color principal.
+
+El editor embebido admite las mismas tareas en `ask`:
+
+```js
+await editor.ask('Controles de reproducción, biblioteca y listas', {
+  mode: 'create', kind: 'icon-pack', quantity: 32,
+  purpose: 'Un reproductor de música', style: 'frutiger-fruits', material: 'fruits',
+});
+await editor.select(['personaje.ojo']);
+await editor.ask('Aumenta el contraste sin cambiar la silueta', {
+  mode: 'refine', refine: 'style', color: '#224488', accent: '#FFCC00',
+});
+await editor.ask('Suaviza el contorno conservando las esquinas', {
+  mode: 'refine', refine: 'contour',
+});
+await editor.ask('¿Qué pierde legibilidad a 24 píxeles?', { mode: 'consult' });
+```
+
+`mode` admite `create`, `refine` o `consult`; `kind` admite `illustration`, `app-icon` o `icon-pack`, y `quantity` corresponde al pack. Las llamadas que omiten `mode` conservan el comportamiento anterior, incluido `refine: 'style' | 'contour' | 'redraw'`. Estas opciones de tarea pertenecen a `editor.ask` del componente embebido; la API Node y la CLI mantienen sus comandos de creación, producción y refinamiento. Se valida la respuesta completa antes de editar: Crear rechaza cambios a piezas existentes, Refinar permite reemplazos interiores únicamente en `redraw`, con validación atómica, y Consultar rechaza operaciones de edición.
+
+### Referencias y recuperación del chat
+
+En Studio independiente y escritorio, las referencias del chat se guardan por documento en IndexedDB junto con su identificador (`ref12`, etc.). Se conserva la imagen enviada al agente, hasta 1024 px, además de su miniatura. Si una referencia antigua solo tiene miniatura, el chat pide volver a adjuntar el original; no sustituye silenciosamente esa imagen por otra. El editor embebido mantiene referencias en memoria aislada por instancia.
+
+Una solicitud detenida o descartada por cambios en el documento deja un resultado visible y la opción **Preparar de nuevo**. Las solicitudes nuevas que quedan sin resultado al recargar se marcan como interrumpidas; no se repiten automáticamente.
+
+En **Redibujar formas**, el agente recibe una vista ampliada de la selección. Si sus operaciones infringen el contrato, se permite un único reintento con el error del motor antes de aplicar. El resultado válido se guarda con un solo deshacer. Las etiquetas, el propósito y los objetos fuera de la selección siguen protegidos; el redibujo no certifica por sí mismo la legibilidad.
+
+```sh
+aru refine instrumentos.aru --select instrumentos.guitarra --mode redraw --message "Haz más reconocible esta guitarra" --history historial.json --out instrumentos-corregidos.aru
+```
+
+La API Node `refineIllustration(session, {message, mode: 'redraw', history, signal})` devuelve `report.attempts`, `report.repaired` y `report.repairError`. El historial es una lista de mensajes `{role, text}`.
 
 ## CLI para una IA
 
@@ -181,7 +265,7 @@ Los informes anteriores a 0.3.1 no contienen `purposeMatch`. Añadir un perfil n
 
 ## Refinar una base protegida (0.4)
 
-Selecciona piezas existentes. En el Asistente IA, `Conservar base → Cambiar estilo` permite solo pintura, grosor, opacidad, sombra y relieve. `Afinar curvas` permite `smooth` y `simplify` acotados. Ambos rechazan dibujos nuevos, borrados, renombres, movimientos, cambios fuera de selección y cambios que afecten descendientes bloqueados. Cada respuesta se valida antes de editar y conserva un paso de deshacer. El modo libre sigue disponible para crear otras ilustraciones.
+Selecciona piezas existentes. En el Asistente IA, `Refinar → Color y acabado` permite solo pintura, grosor, opacidad, sombra y relieve. `Limpiar trazos` permite `smooth` y `simplify` acotados. Ambos rechazan dibujos nuevos, borrados, renombres, movimientos, cambios fuera de selección y cambios que afecten descendientes bloqueados. Cada respuesta se valida antes de editar y conserva un paso de deshacer. Para otras ilustraciones nuevas, usa Crear.
 
 ```sh
 aru refine base.aru --select Icono.Gato --mode style --message "Trazo violeta con resplandor suave" --out neon.aru
@@ -209,7 +293,7 @@ API Node: `exportIconArchive(text, options)` devuelve `{data:Uint8Array, manifes
 
 ## Materiales sobre una base existente (0.5)
 
-`Asistente IA → Material → Aplicar a selección` usa la misma operación protegida que el CLI y el editor embebido. Elige el lote completo o piezas concretas. No requiere ejecutar un modelo; también puedes pedir el material en el chat con `Conservar base → Cambiar estilo`.
+`Asistente IA → Refinar → Color y acabado → Aplicar acabado ahora` usa la misma operación protegida que el CLI y el editor embebido. Elige el lote completo o piezas concretas. No requiere ejecutar un modelo; también puedes pedir el material en el chat con `Refinar → Color y acabado`.
 
 ```sh
 aru materials
@@ -230,3 +314,50 @@ Recetas: `neon` (emisión), `chrome` (bandas de reflexión), `glass` (cristal ti
 Cada pieza pintada recibe el material elegido. Para conservar contraste entre fondo y símbolo, selecciona solo la superficie o aplica materiales diferentes a las piezas. Una selección uniforme no analiza automáticamente el contraste ni asigna funciones de fondo/símbolo. Los materiales son una aproximación vectorial 2D: sin refracción de un fondo, luces físicas ni volumen 3D real. En trazos de 2 unidades los reflejos pierden detalle a 24 px; las variantes ópticas quedan pendientes. Al cambiar de material se conservan degradados anteriores globales para proteger sus posibles usuarios; una herramienta futura puede limpiar los que ya no se usan.
 
 Prueba reproducible: `node tools/material-family-bench.mjs --ai`. Ejecuta cinco pedidos breves con el CLI de IA sobre una copia de CatArt, conserva informes y exporta 50 iconos por material a 24/48/96 px. `--replay` reproduce las operaciones guardadas sin otra llamada a IA. Galería y ZIPs: `out/material-family-2026-10-07/`.
+
+### Identidad y reutilización de recursos
+
+Selecciona un grupo en **Propiedades → Identidad del recurso**. Guarda su tipo (logo, icono de app, icono de interfaz, ilustración o personaje), marca/familia, clave única, etiquetas, propósito y rasgos que conservar. **Recursos del documento** permite encontrarlos y colocar una copia en otro grupo. Las fichas forman parte del `.aru`, sobreviven al guardado y al historial; no dependen de la conversación.
+
+El inventario `context.resources` y las fichas por capa se envían al asistente. El inventario incluye los recursos fuera del resumen de capas del chat. La IA recibe instrucciones para elegirlos por propósito y conservar su identidad; las fichas son datos, nunca instrucciones ejecutables. Por ahora el inventario corresponde al documento abierto, no a todos los archivos del proyecto.
+
+```sh
+aru resources marca.aru --tag musaru --kind app-icon
+aru resources marca.aru --brand Musaru --query splash
+aru apply marca.aru --ops operaciones.json --out splash.aru
+```
+
+Ejemplo de `operaciones.json` (registro y reutilización en un grupo ya existente):
+
+```json
+[
+  {
+    "op": "set", "target": "icono",
+    "resource": {
+      "key": "musaru.icono", "kind": "app-icon", "brand": "Musaru",
+      "tags": ["musaru", "vinilo", "oficial"],
+      "purpose": "Identidad de la app; usar en splash y portadas",
+      "identity": "Base azul, vinilo oscuro, centro amarillo con m y brazo amarillo",
+      "reusable": true
+    }
+  },
+  {"op": "reuse", "other": "resource:musaru.icono", "target": "splash", "x": 160, "y": 180, "scale": 0.8}
+]
+```
+
+`reuse` copia las formas editables y los degradados usados por el recurso bajo nombres independientes. X e Y son coordenadas locales del destino y sustituyen la ubicación original. `scale` multiplica la escala del recurso. El origen puede estar bloqueado; el destino no. Las copias conservan los rasgos y guardan `source`, pero no heredan la clave canónica. No están vinculadas en vivo: editar el original no actualiza automáticamente sus copias.
+
+Selectores disponibles: `tag:vinilo`, `brand:Musaru`, `kind:app-icon`, `resource:musaru.icono`; se combinan con espacios como el resto de selectores. Una clave ambigua no se reutiliza. `reusable:false` excluye la reutilización. El refinamiento protege las fichas existentes, incluso de recursos interiores a un grupo seleccionado.
+
+Para una creación por IA con un fragmento `aru`, una operación `reuse` puede indicar `target:"$created"`: el orquestador lo resuelve exclusivamente al nuevo grupo insertado, después de crear el fragmento. No equivale a la selección anterior. En `apply` directo utiliza una ruta real o `root`. La apariencia elegida para la composición se aplica antes de insertar el recurso para conservar su pintura original.
+
+La sintaxis persistente es `resource "JSON escapado"`, por ejemplo:
+
+```aru
+group logo {
+    resource "{\"key\":\"musaru.logo\",\"kind\":\"logo\",\"tags\":[\"musaru\"],\"reusable\":true}"
+    circle mark { radius 20; fill #FFD04C }
+}
+```
+
+Registrar la identidad guía al modelo; la operación `reuse` conserva la base real. Una nueva ilustración generada sigue necesitando revisión visual para comprobar que respeta el estilo y el propósito solicitados.

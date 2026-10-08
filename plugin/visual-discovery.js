@@ -54,7 +54,8 @@ export const IMAGE_SCHEMA = { type: 'object', additionalProperties: false, requi
   directions: { type: 'array', minItems: 3, maxItems: 3, items: { type: 'object', additionalProperties: false, required: ['name','metaphor','rationale'], properties: { name: { type: 'string' }, metaphor: { type: 'string' }, rationale: { type: 'string' } } } },
   chosen: { type: 'integer', minimum: 0, maximum: 2 }, brief: { type: 'string' }, findings: { type: 'string' }, uncertainty: { type: 'string' },
 } };
-export async function imageCandidates(discovery, { resource = publicResource } = {}) {
+export async function imageCandidates(discovery, { resource = publicResource, minimumImages = 2 } = {}) {
+  if (!Number.isInteger(minimumImages) || minimumImages < 1 || minimumImages > 32) throw new Error('minimumImages debe estar entre 1 y 32');
   const candidates = [], evidence = [], warnings = [];
   const queries = discovery.visualQueries;
   if (!Array.isArray(queries) || queries.length < 2 || queries.length > 3 || queries.some(q => typeof q !== 'string' || q.length > 160 || !q.trim())) throw new Error('Discovery no eligió consultas de imágenes válidas');
@@ -94,7 +95,7 @@ export async function imageCandidates(discovery, { resource = publicResource } =
   // Keep provider order stable despite independent network completions; deduplicate actual pixels.
   const byURL = new Map(loaded.map(c => [c.imageURL,c])), hashes = new Set();
   const images = unique.flatMap(c => { const x=byURL.get(c.imageURL); if (!x || hashes.has(x.sha256)) return []; hashes.add(x.sha256); return [x]; }).map((x,i) => ({ ...x, id:i+1 }));
-  if (images.length < 2) { const e=new Error('No se pudieron observar dos imágenes de referencia; discovery visual no fingirá haberlas visto'); e.details={ evidence,warnings };throw e; }
+  if (images.length < minimumImages) { const count = minimumImages === 1 ? 'una imagen de referencia' : minimumImages === 2 ? 'dos imágenes de referencia' : `${minimumImages} imágenes de referencia`; const e=new Error(`No se pudieron observar ${count}; discovery visual no fingirá haberlas visto`); e.details={ evidence,warnings,requiredImages:minimumImages,observedImages:images.length };throw e; }
   return { images,evidence,warnings };
 }
 export async function referenceSheet(images, size = 240) {

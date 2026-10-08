@@ -1,0 +1,220 @@
+canvas 208 96
+background #F4F2EB
+
+gradient logo_catart___gato_ramp218 linear 0 {
+    from 133.4 304.96
+    to 167.84 281.46
+    stop 0 #B384F5
+    stop 1 #009DFB
+}
+gradient icono_catart_ios___escritorio_ramp172 linear 0 {
+    from 133.56 305.19
+    to 168 281.7
+    stop 0 #B384F5
+    stop 1 #009DFB
+}
+gradient icono_catart_ios___escritorio_baseGrad linear 90 {
+    stop 0 #32463B
+    stop 1 #13251C
+}
+gradient icono_catart___cara_baseGrad linear 90 {
+    stop 0 #34473D
+    stop 1 #12241B
+}
+gradient icono_catart___cabeza_baseGrad linear 90 {
+    stop 0 #34473D
+    stop 1 #12241B
+}
+gradient musicart___instrumentos_redisenados__16__ramp068 linear 0 {
+    from 28.29 273.6
+    to 90.98 317.1
+    stop 0 #FFFFFF
+    stop 1 #ECECEC
+}
+gradient aru_mat_clay_1avb0rs linear 90 {
+    from -245 -245
+    to 245 245
+    stop 0 #546D62
+    stop 0.55 #1B3C2D
+    stop 1 #19332E
+}
+gradient aru_mat_clay_1xg0n87 linear 90 {
+    from 34.11 18.72
+    to 454.74 464.4
+    stop 0 #546D62
+    stop 0.55 #1B3C2D
+    stop 1 #19332E
+}
+gradient aru_mat_clay_aqc6i0 linear 90 {
+    from 142 269.66
+    to 230.96 454.3
+    stop 0 #546D62
+    stop 0.55 #1B3C2D
+    stop 1 #19332E
+}
+gradient aru_mat_clay_182rsyq linear 90 {
+    from 270.9 32.39
+    to 340.52 80.1
+    stop 0 #546D62
+    stop 0.55 #1B3C2D
+    stop 1 #19332E
+}
+gradient aru_mat_clay_1kshbf2 linear 90 {
+    from 37.48 151.82
+    to 95.94 206.75
+    stop 0 #546D62
+    stop 0.55 #1B3C2D
+    stop 1 #19332E
+}
+gradient aru_mat_clay_1l7okvs linear 90 {
+    from 147.87 162.94
+    to 225.45 195.11
+    stop 0 #546D62
+    stop 0.55 #1B3C2D
+    stop 1 #19332E
+}
+gradient aru_mat_clay_uoiuls linear 90 {
+    from 412.39 311.75
+    to 418.81 316.33
+    stop 0 #546D62
+    stop 0.55 #1B3C2D
+    stop 1 #19332E
+}
+gradient aru_mat_clay_15ptsw9 linear 90 {
+    from 30.02 280.01
+    to 103.56 327.8
+    stop 0 #546D62
+    stop 0.55 #1B3C2D
+    stop 1 #19332E
+}
+gradient aru_mat_clay_xjn8e4 linear 90 {
+    from 40.83 401.69
+    to 97.74 470.83
+    stop 0 #546D62
+    stop 0.55 #1B3C2D
+    stop 1 #19332E
+}
+
+group instrumentos {
+    at 12 12
+    label "Íconos Instrumentos"
+    semantic ui.iconpack
+    group guitarra {
+        label "Guitarra"
+        group contenido {
+            at 0.837 0.605
+            scale 0.93
+            path cuerpo { move 12 8; curve 14.5 8 15.5 10 14.8 11.8; curve 17.5 12.8 18 14.5 18 16.5; curve 18 19.8 15.5 22 12 22; curve 8.5 22 6 19.8 6 16.5; curve 6 14.5 6.5 12.8 9.2 11.8; curve 8.5 10 9.5 8 12 8; close; fill none; stroke #2F5148 2.15; cap round; join round }
+            line mastil { from 12 8; to 12 2.5; stroke #2F5148 2.15; cap round; join round }
+            line clavijero { from 10.5 2.5; to 13.5 2.5; stroke #2F5148 2.15; cap round; join round }
+            circle boca { at 12 15.5; radius 1.6; fill none; stroke #2F5148 2.15; cap round; join round }
+            line puente { from 10.5 19; to 13.5 19; stroke #2F5148 2.15; cap round; join round }
+        }
+    }
+    group piano {
+        at 40 0
+        label "Piano"
+        group contenido {
+            rect marco { at 12 12; size 18 14; corner 2; fill none; stroke #2F5148 2; cap round; join round }
+            line t1 { from 8 13; to 8 19; stroke #2F5148 2; cap round; join round }
+            line t2 { from 12 13; to 12 19; stroke #2F5148 2; cap round; join round }
+            line t3 { from 16 13; to 16 19; stroke #2F5148 2; cap round; join round }
+            line n1 { from 8 5; to 8 13; stroke #2F5148 2; cap round; join round }
+            line n2 { from 16 5; to 16 13; stroke #2F5148 2; cap round; join round }
+        }
+    }
+    group tambor {
+        at 80 0
+        label "Tambor"
+        group contenido {
+            at 0 1
+            ellipse parche { at 12 10; size 16 6; fill none; stroke #2F5148 2; cap round; join round }
+            path caja { move 4 10; line 4 17; curve 4 21 20 21 20 17; line 20 10; fill none; stroke #2F5148 2; cap round; join round }
+            line palo1 { from 9 8; to 5 2; stroke #2F5148 2; cap round; join round }
+            line palo2 { from 15 8; to 19 2; stroke #2F5148 2; cap round; join round }
+        }
+    }
+    group violin {
+        at 120 0
+        label "Violín"
+        group contenido {
+            at 0.293 0.537
+            scale 0.976
+            path cuerpo { move 12 9; curve 7 9 7 13 9 14.5; curve 6 16 7 21 12 21; curve 17 21 18 16 15 14.5; curve 17 13 17 9 12 9; close; fill none; stroke #2F5148 2.05; cap round; join round }
+            line mastil { from 12 9; to 12 2.5; stroke #2F5148 2.05; cap round; join round }
+            line arco { from 4 20; to 20 6; stroke #2F5148 2.05; cap round; join round }
+        }
+    }
+    group trompeta {
+        at 160 0
+        label "Trompeta"
+        group contenido {
+            at 0 -1
+            line tubo { from 3 13; to 15 13; stroke #2F5148 2; cap round; join round }
+            path campana { move 15 13; line 21 8; line 21 18; close; fill none; stroke #2F5148 2; cap round; join round }
+            line v1 { from 7 8; to 7 13; stroke #2F5148 2; cap round; join round }
+            line v2 { from 10 8; to 10 13; stroke #2F5148 2; cap round; join round }
+            line v3 { from 13 8; to 13 13; stroke #2F5148 2; cap round; join round }
+        }
+    }
+    group microfono {
+        at 0 40
+        label "Micrófono"
+        group contenido {
+            at 0.293 0.537
+            scale 0.976
+            rect capsula { at 12 8; size 6 11; corner 3; fill none; stroke #2F5148 2.05; cap round; join round }
+            path soporte { move 6 11; curve 6 18 18 18 18 11; fill none; stroke #2F5148 2.05; cap round; join round }
+            line pie { from 12 17; to 12 21; stroke #2F5148 2.05; cap round; join round }
+            line base { from 9 21; to 15 21; stroke #2F5148 2.05; cap round; join round }
+        }
+    }
+    group flauta {
+        at 40 40
+        label "Flauta"
+        group contenido {
+            at 0.293 0.293
+            scale 0.976
+            rect tubo { at 12 12; rotate -45; size 24 5; corner 2.5; fill none; stroke #2F5148 2.05; cap round; join round }
+            circle agujero1 { at 9.5 14.5; radius 1.2; fill none; stroke #2F5148 2.05; cap round; join round }
+            circle agujero2 { at 12.5 11.5; radius 1.2; fill none; stroke #2F5148 2.05; cap round; join round }
+            circle agujero3 { at 15.5 8.5; radius 1.2; fill none; stroke #2F5148 2.05; cap round; join round }
+        }
+    }
+    group maracas {
+        at 80 40
+        label "Maracas"
+        group contenido {
+            at -0.308 -0.564
+            scale 1.026
+            circle m1 { at 8 8; radius 4.5; fill none; stroke #2F5148 1.95; cap round; join round }
+            line mango1 { from 11 11; to 15 21; stroke #2F5148 1.95; cap round; join round }
+            circle m2 { at 17 9; radius 3.5; fill none; stroke #2F5148 1.95; cap round; join round }
+            line mango2 { from 16 12.5; to 13 21; stroke #2F5148 1.95; cap round; join round }
+        }
+    }
+    group pandereta {
+        at 120 40
+        label "Pandereta"
+        group contenido {
+            at 1.565 1.565
+            scale 0.87
+            circle aro { at 12 12; radius 9; fill none; stroke #2F5148 2.3; cap round; join round }
+            circle s1 { at 12 3; radius 1.5; fill none; stroke #2F5148 2.3; cap round; join round }
+            circle s2 { at 21 12; radius 1.5; fill none; stroke #2F5148 2.3; cap round; join round }
+            circle s3 { at 12 21; radius 1.5; fill none; stroke #2F5148 2.3; cap round; join round }
+            circle s4 { at 3 12; radius 1.5; fill none; stroke #2F5148 2.3; cap round; join round }
+        }
+    }
+    group arpa {
+        at 160 40
+        label "Arpa"
+        group contenido {
+            at -0.5 0
+            path marco { move 6 3; line 6 21; line 19 21; curve 19 12 13 6 6 3; fill none; stroke #2F5148 2; cap round; join round }
+            line c1 { from 9.5 6; to 9.5 21; stroke #2F5148 2; cap round; join round }
+            line c2 { from 13 9; to 13 21; stroke #2F5148 2; cap round; join round }
+            line c3 { from 16 13; to 16 21; stroke #2F5148 2; cap round; join round }
+        }
+    }
+}

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-test('CLI checkpoints partial output, resumes original target, reports incomplete correctly and protects edited output', async t => {
+test('CLI checkpoints partial output, resumes original target, reports incomplete correctly and retains safe edits and protects changed inventory', async t => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'aru-production-cli-'));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
   const mock = path.join(dir, 'claude');
@@ -32,5 +32,9 @@ console.log(JSON.stringify({type:'result',structured_output:{icons}}));
   const resumed = run(['--resume']); assert.equal(resumed.code, 0); assert(resumed.body.ok); assert.equal(resumed.body.report.production.accepted.length, 33);
   await fs.appendFile(out, '\ncircle manual { at 100 100; radius 2 }');
   const protectedOutput = await fs.readFile(out, 'utf8'), edited = run(['--resume']);
-  assert.equal(edited.code, 1); assert.match(edited.body.error.message, /editada/); assert.equal(await fs.readFile(out, 'utf8'), protectedOutput);
+  assert.equal(edited.code,0); assert.match(await fs.readFile(out,'utf8'),/circle manual/);
+  const painted=(await fs.readFile(out,'utf8')).replaceAll('#604631','#2463EB'); await fs.writeFile(out,painted);
+  assert.equal(run(['--resume']).code,0); assert.match(await fs.readFile(out,'utf8'),/#2463EB/);
+  const changed=(await fs.readFile(out,'utf8')).replace('to 8 3','to 9 3'); await fs.writeFile(out,changed);
+  const invalid=run(['--resume']);assert.equal(invalid.code,1);assert.match(invalid.body.error.message,/Inventario modificado/);assert.equal(await fs.readFile(out,'utf8'),changed);
 });

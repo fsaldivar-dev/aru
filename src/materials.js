@@ -71,3 +71,34 @@ export function applyMaterial(scene, ids, { preset, color, strength = 1 } = {}) 
   }
   return `${patches.length} pieza(s), material ${preset}`;
 }
+
+// Paint every existing drawable, including explicit child paint that overrides a group.
+export function applyPalette(scene, ids, { color, accent, material = '', strength = 1 } = {}) {
+  strength ??= 1;
+  if(!/^#[a-f\d]{6}$/i.test(color) || (accent && !/^#[a-f\d]{6}$/i.test(accent))) throw new Error('Paleta: color y acento #RRGGBB');
+  if(material && !Object.hasOwn(PROFILES,material)) throw new Error('Material desconocido');
+  if(!Number.isFinite(strength) || strength<=0 || strength>1) throw new Error('Intensidad inválida');
+  const leaves=new Set();
+  for(const id of ids) {
+    const n=scene.byId.get(id); if(!n) throw new Error('Pieza inexistente');
+    for(let a=n;a&&a!==scene.root;a=parentOf(scene,a)) if(a.locked) throw new Error('Capa bloqueada');
+    walk(n,c=>{if(c.locked) throw new Error('Capa bloqueada'); if(c.geom && c.type!=='group') leaves.add(c);});
+  }
+  let channels=0, touched=0;
+  for(const n of leaves) {
+    if(inherited(scene,n,'hidden',false)) continue;
+    const active=['stroke','fill'].filter(k=>inherited(scene,n,k,k==='fill'?'#000000':'none')!=='none');
+    if(active.length) touched++;
+    const previousPreset=active.map(k=>/^aru_mat_(neon|chrome|glass|clay|fruits)_/.exec(n[k] || '')?.[1]).find(Boolean);
+    const preset=material || previousPreset;
+    for(const channel of active) {
+      const targetColor=channel==='fill' ? accent || color : color;
+      if(preset) {
+        const other=channel==='fill'?'stroke':'fill', saved=n[other]; n[other]='none';
+        applyMaterial(scene,[n.id],{preset,color:targetColor,strength}); n[other]=saved;
+      } else n[channel]=targetColor.toUpperCase();
+      channels++;
+    }
+  }
+  return `${touched} pieza(s), ${channels} canales recoloreados`;
+}

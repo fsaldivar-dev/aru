@@ -9,6 +9,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { localModelCatalog } from './model-catalog.mjs';
 
 const AGENTS = { claude: { name: 'Claude', bin: 'claude' }, codex: { name: 'Codex', bin: 'codex' }, agy: { name: 'Antigravity', bin: 'agy' }, gemini: { name: 'Gemini', bin: 'gemini' } };
 const TIMEOUT_MS = 6 * 60 * 1000;
@@ -33,14 +34,14 @@ function resolveBin(bin) {
 
 let detected = null;
 export function detect() {
-  if (detected) return detected;
+  if (detected) return detected.map(a=>({...a,...localModelCatalog(a.id)}));
   detected = Object.entries(AGENTS).map(([id, a]) => {
     const p = resolveBin(a.bin);
     let version = null;
     if (p) try { version = execFileSync(p, ['--version'], { encoding: 'utf8', timeout: 8000, env: { ...process.env, PATH: pathDirs().join(':') } }).trim().split('\n')[0]; } catch { /* keep null */ }
     return { id, name: a.name, bin: a.bin, installed: !!p, path: p, version };
   });
-  return detected;
+  return detected.map(a=>({...a,...localModelCatalog(a.id)}));
 }
 
 // attached images: validated, written into the run directory (name.ext)

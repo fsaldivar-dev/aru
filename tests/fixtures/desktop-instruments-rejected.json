@@ -1,0 +1,26 @@
+{
+  "source": "Captured desktop replay response-1.json, 2026-10-07. Only public reply and operations; provider metadata excluded.",
+  "reply": "Les di siluetas más distintas a tres íconos. Cuando el motor los aplique, deberían quedar así:\n\n- **Guitarra:** caja en forma de 8 con cintura, boca redonda, puente, mástil largo y clavijero con clavijas.\n- **Batería (antes \"tambor\"):** ahora es un set de batería: bombo de frente, tom arriba a la derecha y platillo con su soporte a la izquierda. Así ya no se confunde con un tambor suelto.\n- **Violín:** cuerpo más pequeño con dos cinturas, efes (f) a los lados, voluta redonda arriba y el arco aparte en vertical, para que no tape el instrumento.\n\nEn el pack no hay ningún ícono de **bajo**. Si quieres uno, puedo añadirlo: sería parecido a la guitarra pero con el cuerpo más alargado y un mástil más largo.",
+  "operations": [
+    {
+      "op": "redraw",
+      "target": "instrumentos.guitarra.contenido",
+      "aru": "path cuerpo { move 12 10; curve 9 10 8.5 12.5 9.5 14.5; curve 6 15.5 6.5 22 12 22; curve 17.5 22 18 15.5 14.5 14.5; curve 15.5 12.5 15 10 12 10; close; fill none; stroke #2F5148 2 }\ncircle boca { at 12 17; radius 1.6; fill none; stroke #2F5148 1.6 }\nline puente { from 10.5 20; to 13.5 20; stroke #2F5148 1.6 }\nline mastil { from 12 10; to 12 4.5; stroke #2F5148 2 }\nrect clavijero { at 12 3.5; size 3 3; corner 0.8; fill none; stroke #2F5148 1.6 }\nline clavija1 { from 10.5 3; to 9 3; stroke #2F5148 1.4 }\nline clavija2 { from 13.5 3; to 15 3; stroke #2F5148 1.4 }"
+    },
+    {
+      "op": "redraw",
+      "target": "instrumentos.tambor.contenido",
+      "aru": "circle bombo { at 12 15; radius 5.5; fill none; stroke #2F5148 2 }\ncircle centro { at 12 15; radius 1.5; fill none; stroke #2F5148 1.6 }\nline platillo { from 3 6.5; to 8.5 6.5; stroke #2F5148 2 }\nline soporte { from 5.75 6.5; to 5.75 20.5; stroke #2F5148 1.6 }\nrect tom { at 17 6.5; size 5.5 4; corner 1; fill none; stroke #2F5148 2 }"
+    },
+    {
+      "op": "redraw",
+      "target": "instrumentos.violin.contenido",
+      "aru": "path cuerpo { move 11 9; curve 8.5 9 8 11 9 12.5; curve 8 13.5 8.5 14.5 9 15; curve 7 16 7.5 21 11 21; curve 14.5 21 15 16 13 15; curve 13.5 14.5 14 13.5 13 12.5; curve 14 11 13.5 9 11 9; close; fill none; stroke #2F5148 2 }\nline f1 { from 9.8 14; to 9.8 17; stroke #2F5148 1.2 }\nline f2 { from 12.2 14; to 12.2 17; stroke #2F5148 1.2 }\nline mastil { from 11 9; to 11 4.5; stroke #2F5148 2 }\ncircle voluta { at 11 3.5; radius 1.1; fill none; stroke #2F5148 1.6 }\nline arco { from 16.5 3; to 19 21; stroke #2F5148 1.6 }\nline cerda { from 18 3; to 20 19; stroke #2F5148 0.8 }"
+    },
+    {
+      "op": "set",
+      "target": "instrumentos.tambor",
+      "label": "Batería"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 // Icon PACKS (UI icons drawn by the AI in ARU) — inspected, steered and scored like the glyph icons: the tool measures
 // what a professional icon designer checks, tells the AI which defect each icon has and which lever fixes it, applies
-// the levers (or the AI's redraw of an icon) and keeps a change only if the PACK SCORE improves.
+// the levers (or the AI's redraw of an icon). Geometry quality and blind recognition are scored separately:
+// changing a drawing makes its recognition pending, never automatically correct.
 //
 // Convention (also in the AI's prompt): a pack is ONE group (frame) whose child groups are the icons; each icon's `at`
 // is the top-left of its SIZE×SIZE design cell (24 by default) and its content uses local units 0..SIZE.
@@ -9,7 +10,7 @@
 //             (< 1 px²), detail (nodes), stroke widths, outline vs filled
 //   per pack  duplicates (normalized silhouettes IoU ≥ 0.8), weight / size / stroke / style consistency
 // Levers (deterministic, pack-wide): strokeWidth, caps, joins, fitSize (optical size of every icon), color.
-// Redraws: the AI may rewrite flagged icons; each redraw is kept only if that icon (and the pack) scores better.
+// Redraws: the AI may rewrite flagged icons without degrading measured geometry; the new meaning must be retested.
 import { maskOpen, maskComponents } from './glyph.js';
 import { compile } from '../src/engine.js';
 import { toAru } from '../src/serialize.js';
@@ -75,6 +76,8 @@ export async function inspectPack(scene, pack, rasterize, { size = 24, recogniti
   const imgs = await Promise.all(list.map((icon) => rasterize(cellScene(scene, icon, size, M), W, W))); // all cells at once
   for (const [k, icon] of list.entries()) {
     const img = imgs[k];
+    let renderHash = 2166136261;
+    for (const value of img.data) renderHash = Math.imul(renderHash ^ value, 16777619) >>> 0;
     const mask = new Uint8Array(W * W);
     for (let i = 0; i < mask.length; i++) { const p = i * 4; if (Math.max(255 - img.data[p], 255 - img.data[p + 1], 255 - img.data[p + 2]) > 40) mask[i] = 1; }
     let x0 = W, y0 = W, x1 = -1, y1 = -1, n = 0;
@@ -98,7 +101,7 @@ export async function inspectPack(scene, pack, rasterize, { size = 24, recogniti
     };
     visit(icon, 1);
     const lint = lintIcon(icon);
-    icons.push({ name: icon.name, label: icon.label || icon.name, empty, bbox, lint, size: Math.max(bbox[2] - bbox[0], bbox[3] - bbox[1]),
+    icons.push({ name: icon.name, label: icon.label || icon.name, renderHash, empty, bbox, lint, size: Math.max(bbox[2] - bbox[0], bbox[3] - bbox[1]),
       weight: n / ((size * R) ** 2), cut: !empty && (bbox[0] < -0.01 || bbox[1] < -0.01 || bbox[2] > size + 0.01 || bbox[3] > size + 0.01), thin: n ? thin / n : 0, specks, nodes: Math.round(nodes), widths: [...widths], style: stroked && !filled ? 'outline' : filled && !stroked ? 'filled' : 'mixed',
       outside: !empty && (bbox[0] < 1 || bbox[1] < 1 || bbox[2] > size - 1 || bbox[3] > size - 1), sig: signature(mask, W, x0, y0, x1, y1) });
   }
@@ -111,13 +114,12 @@ export async function inspectPack(scene, pack, rasterize, { size = 24, recogniti
   const dups = [];
   for (let a = 0; a < live.length; a++) for (let b = a + 1; b < live.length; b++) { const s = iou(live[a].sig, live[b].sig); if (s >= 0.8) dups.push([live[a].name, live[b].name, Math.round(s * 100) / 100]); }
   const dupOf = new Map(); for (const [a, b] of dups) { dupOf.set(b, a); }
+  const recognitionSummary = { recognized: 0, failed: 0, unverified: 0, total: icons.length, complete: false };
   for (const i of icons) {
     const issues = []; let pen = 0; const add = (w, t) => { issues.push(t); pen += w; };
     if (i.empty) add(0.6, 'vacío (no se ve nada)');
     if (i.cut) add(0.5, 'se sale de su celda de 24 (queda cortado)');
     else if (i.outside) add(0.15, 'se sale de la zona segura (1–23)');
-    const rec = recognition?.get(i.name);
-    if (rec && !rec.ok) add(0.4, `en la prueba ciega no se reconoce como «${i.label}» (se leyó como «${rec.readAs}»)`);
     if (dupOf.has(i.name)) add(0.4, `repite la silueta de «${dupOf.get(i.name)}»`);
     for (const l of i.lint) add(l.kind === 'faceted' ? 0.2 : 0.3, l.text);
     if (!i.empty && i.style !== mainStyle) add(0.25, `estilo ${i.style} en un pack ${mainStyle}`);
@@ -126,14 +128,26 @@ export async function inspectPack(scene, pack, rasterize, { size = 24, recogniti
     if (i.thin > 0.08) add(0.15, `${(i.thin * 100).toFixed(0)} % de trazos de menos de 1,5 px`);
     if (i.specks) add(0.1, `${i.specks} motas`);
     if (i.nodes > 40) add(0.15, `demasiado detalle para 24 px (${i.nodes} nodos)`);
+    i.geometryScore = Math.max(0, 1 - pen);
+    const rec = recognition?.get(i.name);
+    i.recognition = rec?.ok === true ? 'recognized' : rec?.ok === false ? 'failed' : 'unverified';
+    recognitionSummary[i.recognition]++;
+    // Unverified carries exactly the failed-recognition penalty. Removing an old failure after a redraw
+    // must not improve the score; only a fresh successful blind test can release this penalty.
+    if (i.recognition === 'failed') add(0.4, `en la prueba ciega no se reconoce como «${i.label}» (se leyó como «${rec.readAs}»)`);
+    else if (i.recognition === 'unverified') add(0.4, `reconocimiento pendiente: «${i.label}» todavía no tiene una prueba ciega válida para este dibujo`);
     i.issues = issues;
     i.score = Math.max(0, 1 - pen);
   }
   const consistency = Math.max(0, 1 - 0.15 * Math.max(0, allWidths.size - 1) - 0.1 * Math.max(0, Object.keys(styleCount).length - 1) - 0.08 * dups.length);
   // a pack is as professional as its WORST icon: mean and minimum both count
-  const mean = icons.reduce((s, i) => s + i.score, 0) / Math.max(1, icons.length), worst = Math.min(1, ...icons.map((i) => i.score));
-  const score = Math.round((0.4 * mean + 0.2 * worst + 0.4 * consistency) * 1000) / 1000;
-  return { score, consistency: Math.round(consistency * 1000) / 1000, icons, duplicates: dups, widths: [...allWidths], mainStyle, medianSize: mSize, medianWeight: mWeight, size };
+  const aggregate = key => {
+    const mean = icons.reduce((s, i) => s + i[key], 0) / Math.max(1, icons.length), worst = Math.min(1, ...icons.map(i => i[key]));
+    return Math.round((0.4 * mean + 0.2 * worst + 0.4 * consistency) * 1000) / 1000;
+  };
+  recognitionSummary.complete = recognitionSummary.unverified === 0;
+  return { score: aggregate('score'), geometryScore: aggregate('geometryScore'), recognition: recognitionSummary,
+    consistency: Math.round(consistency * 1000) / 1000, icons, duplicates: dups, widths: [...allWidths], mainStyle, medianSize: mSize, medianWeight: mWeight, size };
 }
 // normalized silhouette: the content box resampled to 16×16
 function signature(mask, W, x0, y0, x1, y1) {
@@ -217,7 +231,8 @@ export const sceneToAru = (scene) => toAru(scene, { precision: 3 });
 export function packReport(ins, levers) {
   const bad = ins.icons.filter((i) => i.issues.length);
   return `Icon pack inspection (${ins.icons.length} icons, ${ins.size}×${ins.size} design grid, safe area 1–23, professional UI icons: one style, one stroke width, same optical size, no duplicates, legible at 24 px):
-- pack score ${ins.score} (consistency ${ins.consistency}); main style ${ins.mainStyle}; stroke widths in use ${JSON.stringify(ins.widths)}; median optical size ${ins.medianSize.toFixed(1)} px
+- pack score ${ins.score} (geometry ${ins.geometryScore}, consistency ${ins.consistency}); main style ${ins.mainStyle}; stroke widths in use ${JSON.stringify(ins.widths)}; median optical size ${ins.medianSize.toFixed(1)} px
+- blind recognition: ${ins.recognition.recognized}/${ins.recognition.total} recognized, ${ins.recognition.failed} failed, ${ins.recognition.unverified} unverified. Geometry measurements do not establish meaning; every changed drawing needs a fresh blind test.
 - duplicates: ${ins.duplicates.length ? ins.duplicates.map(([a, b, s]) => `${a} ≈ ${b} (${s})`).join(', ') : 'none'}
 ${bad.length ? bad.map((i) => `- ${i.name} («${i.label}»): ${i.issues.join('; ')}`).join('\n') : '- no icon has issues'}
 Levers (whole pack, deterministic): repair true|false (fixes the ARU mistakes listed above: multi-point move, default black fill, invisible shapes), strokeWidth ${JSON.stringify(PACK_LEVERS.strokeWidth)} (one width for all strokes), caps round|butt|square, joins round|miter|bevel,

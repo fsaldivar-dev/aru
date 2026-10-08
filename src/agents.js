@@ -1,3 +1,4 @@
+import { RESOURCE_POLICY } from './resources.js';
 // Assistant chat over the AI CLIs installed on this machine (claude, codex, agy, gemini).
 // The page never builds command lines: it sends { provider, model, system, prompt, schema, images } to a BRIDGE
 // (the Tauri backend in the desktop app, or tools/serve.mjs in the browser), which only knows these four CLIs and
@@ -17,14 +18,18 @@ export const PROVIDERS = [
   { id: 'gemini', name: 'Gemini', bin: 'gemini', models: ['', 'gemini-2.5-pro', 'gemini-2.5-flash'], note: 'Gemini CLI', vision: true },
 ];
 
-const OPS = OPERATIONS;
+// redraw is accepted only by scoped refinement, never by the unrestricted batch engine.
+const OPS = [...OPERATIONS, 'redraw'];
 const nullable = (type) => ({ type: [type, 'null'] });
 // strict schemas (OpenAI-compatible): every field present, unused ones null; no optional objects (portable)
+const RESOURCE_FIELDS = { key: nullable('string'), kind: nullable('string'), brand: nullable('string'), purpose: nullable('string'), identity: nullable('string'), source: nullable('string'), reusable: nullable('boolean'), tags: { type: ['array', 'null'], items: { type: 'string' } } };
 const OP_FIELDS = {
+  scale: nullable('number'), resource: { type: ['object', 'null'], additionalProperties: false, required: Object.keys(RESOURCE_FIELDS), properties: RESOURCE_FIELDS },
+  aru: nullable('string'),
   target: { type: 'string' }, pattern: nullable('string'), label: nullable('string'), fill: nullable('string'), stroke: nullable('string'),
   strokeWidth: nullable('number'), opacity: nullable('number'), hidden: nullable('boolean'), locked: nullable('boolean'),
   preset: nullable('string'), duration: nullable('number'), delay: nullable('number'), stagger: nullable('number'), repeat: nullable('string'), ease: nullable('string'),
-  shadow: nullable('string'), inner: nullable('string'),
+  shadow: nullable('string'), inner: nullable('string'), accent: nullable('string'), material: nullable('string'),
   color: nullable('string'),
   tolerance: nullable('number'), strength: nullable('number'), cornerAngle: nullable('number'), other: nullable('string'),
   endpoint: nullable('string'), otherEndpoint: nullable('string'), maxDistance: nullable('number'),
@@ -188,6 +193,8 @@ inspects the pack and may ask you to adjust levers or redraw specific icons.`;
 
 export function systemPrompt({ illustrator = false } = {}) {
   return `You are the assistant inside ARU Studio, a layered vector editor. You help the user understand and edit the open document.
+${RESOURCE_POLICY}
+For a NEW composition returned in aru, reuse operations run AFTER insertion: target="$created" means its new wrapper, never the old selection. Use x/y in the fragment's authored coordinates. Put the new composition metadata directly on its meaningful group with ARU resource followed by a JSON-encoded string containing the resource JSON. Example: resource ${JSON.stringify(JSON.stringify({kind:'illustration',brand:'Musaru',purpose:'Splash',tags:['musaru','splash'],identity:'Blue and yellow music identity',reusable:true}))}.
 Answer in the user's language, briefly, in plain text (light Markdown is fine: **bold**, lists).
 You may receive images: "canvas.png" is a render of the CURRENT artboard (use it to see what the layers look like);
 "ref1.png", "ref2.png"... are REFERENCE images attached by the user.
@@ -200,9 +207,11 @@ then written in CANVAS coordinates, added inside that group above its content an
 part:<name>, role:<role>, type:<type>, semantic:<path>, name:<name>, "*"; several selectors separated by spaces = AND.
 For ONE specific layer use its exact path (e.g. card.dot), never part:<path>. Do not invent paths.
 - rename: pattern with tokens {name} {label} {type} {part} {semantic} {i} {n}
+- palette: color #RRGGBB, optional accent #RRGGBB (filled pieces), material neon|chrome|glass|clay|fruits. Repaints all existing drawable descendants including explicit child paint, preserves geometry. Prefer palette for changing an ENTIRE pack; setting stroke/fill on its group does NOT override child paint.
 - material: preset neon|chrome|glass|clay|fruits, optional color #RRGGBB, strength >0..1 (default 1).
   Paints existing filled/stroked pieces consistently, preserves holes, geometry, transforms and stroke widths.
   Gradients and proportional relief are computed by the engine; no drawing or gradient coordinates needed.
+- redraw: available ONLY when the supplied refinement mode is redraw. Exact target group path and aru fragment in the group's LOCAL coordinates replace its interior shapes; the target group's identity and placement remain. Otherwise never use this operation. Top-level aru remains separate.
 - set: label, fill, stroke, strokeWidth, opacity (0..1), hidden, locked (colors #RRGGBB), shadow "DX DY BLUR #COLOR OPACITY"
   (drop shadow = elevation), inner "DX DY BLUR #COLOR OPACITY" (inner shadow/highlight = relief; two separated by |), "none" clears
 - animate: preset (${PRESET_NAMES.join(', ')}, none), duration s, delay s, stagger s per layer, repeat (once|loop|alternate), ease (${Object.keys(EASES).join(', ')})
@@ -274,6 +283,8 @@ export function buildPrompt({ context, selection, history, message, images = [] 
   return `${context}
 Current selection: ${selection.length ? selection.join(', ') : '(nothing)'}${att}
 ${past ? `\nConversation so far:\n${past}\n` : ''}
+Report only engine-verified counts. Do not infer completion from old conversation or reduce a requested total. A status question must use the supplied production inventory. For bulk edits report intended operations, not a claim of success before the engine applies and verifies them.
+
 User: ${message}`;
 }
 

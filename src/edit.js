@@ -1,16 +1,14 @@
+import { normalizeResource, markResourceCopy } from './resources.js';
 // Scene editing operations used by the Studio (and by batch / AI operation lists). Pure functions on a scene:
 // they mutate the node tree; the caller serializes with toAru() and recompiles, so ids and paths are rebuilt.
 // Every operation takes a LIST of node ids, so single edits and batch edits are the same code path.
 import { applyTransform } from './scene.js';
 import { PRESETS } from './anim.js';
+import { indexedParent, invalidateSceneIndex } from './scene-index.js';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
-export function parentOf(scene, node) {
-  let found = null;
-  (function walk(p) { for (const c of p.children) { if (c === node) { found = p; return; } walk(c); if (found) return; } })(scene.root);
-  return found;
-}
+export const parentOf = indexedParent;
 const nodesOf = (scene, ids) => ids.map((id) => scene.byId.get(id)).filter(Boolean);
 export function uniqueName(parent, base) {
   const clean = String(base || 'item').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9_]/g, '_').replace(/^(\d)/, '_$1') || 'item';
@@ -22,9 +20,13 @@ export function uniqueName(parent, base) {
 export const displayName = (n) => n.label || n.name;
 
 // ---- properties (one or many) ----
-const PATCHABLE = new Set(['label', 'fill', 'stroke', 'strokeWidth', 'opacity', 'at', 'rotate', 'scale', 'hidden', 'locked', 'animate', 'semantic', 'role', 'fillOpacity', 'shadow', 'inner']);
+const PATCHABLE = new Set(['label', 'fill', 'stroke', 'strokeWidth', 'opacity', 'at', 'rotate', 'scale', 'hidden', 'locked', 'animate', 'semantic', 'role', 'fillOpacity', 'shadow', 'inner', 'resource']);
 export function setProps(scene, ids, patch) {
   const nodes = nodesOf(scene, ids);
+  if (patch.resource != null) {
+    patch = { ...patch, resource: normalizeResource(patch.resource) };
+    if (patch.resource.key && (nodes.length !== 1 || [...scene.byId.values()].some(n => !ids.includes(n.id) && n.resource?.key === patch.resource.key))) throw new Error('La clave del recurso ya existe o se asignaría a varias capas');
+  }
   for (const n of nodes) for (const [k, v] of Object.entries(patch)) {
     if (!PATCHABLE.has(k)) throw new Error(`property '${k}' cannot be edited`);
     if (v === null || v === undefined || v === '') delete n[k];
@@ -68,6 +70,7 @@ export function group(scene, ids, label = 'Grupo') {
   const keep = parent.children.filter((c) => !nodes.includes(c));
   keep.splice(idx[idx.length - 1] - (idx.length - 1), 0, g); // where the topmost member was
   parent.children = keep;
+  invalidateSceneIndex(scene);
   return g;
 }
 export function ungroup(scene, id) {
@@ -88,21 +91,30 @@ export function ungroup(scene, id) {
     c.name = uniqueName({ children: parent.children.filter((x) => x !== g) }, c.name);
   }
   parent.children.splice(at, 1, ...g.children);
+  invalidateSceneIndex(scene);
   return g.children;
 }
 export function duplicate(scene, ids, offset = [16, 16]) {
   const out = [];
   for (const n of nodesOf(scene, ids)) {
-    const parent = parentOf(scene, n), copy = clone(n);
+    const parent = parentOf(scene, n), copy = clone(n); markResourceCopy(copy);
     copy.name = uniqueName(parent, n.name); copy.label = n.label ? `${n.label} copia` : undefined;
     copy.at = [n.at[0] + offset[0], n.at[1] + offset[1]];
     parent.children.splice(parent.children.indexOf(n) + 1, 0, copy);
     out.push(copy);
   }
+  invalidateSceneIndex(scene);
   return out;
 }
 export function remove(scene, ids) {
-  for (const n of nodesOf(scene, ids)) { const p = parentOf(scene, n); if (p) p.children.splice(p.children.indexOf(n), 1); }
+  const byParent = new Map();
+  for (const n of nodesOf(scene, ids)) {
+    const p = parentOf(scene, n); if (!p) continue;
+    if (!byParent.has(p)) byParent.set(p, new Set());
+    byParent.get(p).add(n);
+  }
+  for (const [parent, removed] of byParent) parent.children = parent.children.filter(n => !removed.has(n));
+  invalidateSceneIndex(scene);
 }
 // 'up' = drawn above the next sibling, 'top' = above all siblings
 export function reorder(scene, ids, dir) {
@@ -123,6 +135,7 @@ export function moveInto(scene, ids, targetId, index = null) {
   for (const n of nodes) { const p = parentOf(scene, n); p.children.splice(p.children.indexOf(n), 1); }
   const at = index == null ? target.children.length : Math.min(index, target.children.length);
   target.children.splice(at, 0, ...nodes);
+  invalidateSceneIndex(scene);
 }
 const isAncestor = (a, b) => { let found = false; (function w(n) { for (const c of n.children) { if (c === b) found = true; else w(c); } })(a); return found; };
 
@@ -165,6 +178,7 @@ export function addShape(scene, type, { at = [0, 0], size = [100, 60], fill = '#
   if (!geom) throw new Error(`cannot add '${type}'`);
   const n = { id: -1, type, name: uniqueName(parent, label || type), label: label || undefined, at, rotate: 0, scale: [1, 1], fill: type === 'group' ? null : fill, stroke: null, strokeWidth: 1, opacity: 1, layer: 2, geom, children: [] };
   parent.children.push(n);
+  invalidateSceneIndex(scene);
   return n;
 }
 
@@ -191,12 +205,42 @@ export function insertFragment(scene, frag, { at = [0, 0], scale = 1, label = 'I
     const g = kids[0];
     g.name = uniqueName(scene.root, g.name); g.label = g.label || label;
     scene.root.children.push(g);
+    invalidateSceneIndex(scene);
     return g;
   }
   const g = { id: -1, type: 'group', name: uniqueName(scene.root, label), label, at, rotate: 0, scale: [scale, scale], fill: null, stroke: null, strokeWidth: 1, opacity: 1, layer: 2, geom: {}, children: kids };
   scene.root.children.push(g);
+  invalidateSceneIndex(scene);
   return g;
 }
 
 // ---- operation lists (batch / AI): [{ op: 'rename' | 'set' | 'animate' | 'group' | ..., ids|target, ... }] ----
-export const OPERATIONS = ['set', 'material', 'translate', 'rename', 'animate', 'group', 'ungroup', 'duplicate', 'delete', 'reorder', 'add', 'canvas', 'smooth', 'simplify', 'weld', 'connect'];
+export const OPERATIONS = ['set', 'material', 'palette', 'translate', 'rename', 'animate', 'group', 'ungroup', 'duplicate', 'reuse', 'delete', 'reorder', 'add', 'canvas', 'smooth', 'simplify', 'weld', 'connect'];
+
+// Reuse reads a source (even a locked original); only the destination is mutated.
+export function reuseResource(scene, source, target = 'root', { x = 0, y = 0, scale = 1, label } = {}) {
+  if (!source?.resource || !source.resource.reusable) throw new Error('El origen no es un recurso reutilizable');
+  if (![x, y, scale].every(Number.isFinite) || scale <= 0) throw new Error('Posición o escala de reutilización inválida');
+  const parent = target === 'root' ? scene.root : scene.byPath.get(target);
+  if (!parent || parent.type !== 'group') throw new Error('El destino debe ser un grupo o root');
+  for (let n = parent; n && n !== scene.root; n = parentOf(scene, n)) if (n.locked) throw new Error('Destino bloqueado');
+  if (source.clip && !source.children.some(n => n.name === source.clip)) throw new Error('El recorte del recurso depende de otra capa; agrúpala con el recurso antes de reutilizarlo');
+  const copy = clone(source); markResourceCopy(copy);
+  // Inherited paint must travel with a resource detached from its original parent.
+  for (const key of ['fill', 'stroke', 'cap', 'join']) if (copy[key] == null) {
+    for (let a = parentOf(scene, source); a; a = parentOf(scene, a)) if (a[key] != null) { copy[key] = a[key]; if (key === 'stroke') copy.strokeWidth = a.strokeWidth; break; }
+  }
+  for (let a = parentOf(scene, source); a; a = parentOf(scene, a)) copy.opacity *= a.opacity ?? 1;
+  delete copy.locked; delete copy.hidden;
+  const gradients = {};
+  function paints(n) { for (const p of [n.fill, n.stroke]) if (scene.gradients[p]) gradients[p] = scene.gradients[p]; for (const c of n.children) paints(c); }
+  paints(copy);
+  // The insertion helper namespaces just the gradients used by this resource.
+  const added = insertFragment(scene, { root: { children: [copy] }, gradients }, { label: label || source.label || source.name });
+  scene.root.children.splice(scene.root.children.indexOf(added), 1);
+  added.name = uniqueName(parent, source.name); added.label = label || source.label || source.name;
+  added.at = [x, y]; added.scale = [source.scale[0] * scale, source.scale[1] * scale]; added.rotate = source.rotate;
+  // Non-group shapes receive an insertion wrapper: placement belongs to that wrapper.
+  if (copy !== added) { copy.at = [0, 0]; copy.scale = [1, 1]; copy.rotate = 0; added.resource = copy.resource; delete copy.resource; }
+  parent.children.push(added); invalidateSceneIndex(scene); return added;
+}

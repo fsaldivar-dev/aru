@@ -39,7 +39,7 @@ export function withOpaqueBackground(scene, { color = scene.background, bounds =
 // The PNG is a complete image. Alpha in paths, holes, shadows and rounded corners is composited onto this colour.
 export async function opaquePng(scene, render, { width = scene.width, height = scene.height } = {}) {
   const img = new Image();
-  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(render(scene, { dataAttrs: false, animate: false }));
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(render(scene, { dataAttrs: false, animate: false }).replace(/(<svg[^>]*\bwidth=")[^"]+/, '$1' + Math.round(width)).replace(/(<svg[^>]*\bheight=")[^"]+/, '$1' + Math.round(height)));
   await img.decode();
   const cv = document.createElement('canvas'); cv.width = Math.round(width); cv.height = Math.round(height);
   const g = cv.getContext('2d');

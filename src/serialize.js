@@ -28,6 +28,7 @@ export function toAru(scene, { keepNames = true, precision = 3 } = {}) {
     if (n.scale[0] !== 1 || n.scale[1] !== 1) props.push(n.scale[0] === n.scale[1] ? `scale ${f(n.scale[0])}` : `scale ${pair(n.scale)}`);
     if (depth === 0 && n.layer !== 2) props.push(`layer ${LAYER_NAMES[n.layer] ?? n.layer}`);
     if (n.label) props.push(`label "${String(n.label).replace(/"/g, "'")}"`);
+    if (n.resource) props.push(`resource ${JSON.stringify(JSON.stringify(n.resource))}`);
     if (n.hidden) props.push('hidden 1');
     if (n.locked) props.push('locked 1');
     if (n.animate) props.push(animateToAru(n.animate));

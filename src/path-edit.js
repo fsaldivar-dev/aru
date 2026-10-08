@@ -1,6 +1,7 @@
 // Intent-level path editing. The caller owns history/persistence; all validation happens before mutation.
 // Distances are in canvas units, even inside rotated/non-uniformly scaled groups.
 import { applyTransform } from './scene.js';
+import { invalidateSceneIndex } from './scene-index.js';
 import { douglasPeucker } from '../trace/simplify.js';
 import { lerp2, sub, add, mul, norm, len } from './geom.js';
 
@@ -192,7 +193,7 @@ export function joinPaths(scene, ids, otherIds, op, options = {}) {
     ap[0].segments.push(...bp[0].segments);
     a.geom.commands = write(ap);
     const parent = ctx.parents.get(b); parent.children.splice(parent.children.indexOf(b), 1);
-    scene.byId.delete(b.id); scene.byPath.delete(b.path);
+    scene.byId.delete(b.id); scene.byPath.delete(b.path); invalidateSceneIndex(scene);
   } else { a.geom.commands = write(ap); b.geom.commands = write(bp); }
   return `${op === 'connect' ? 'Un trazo continuo' : 'Dos extremos coincidentes; capas conservadas'} · ${endA} ↔ ${endB} · separación previa ${distance.toFixed(2)}`;
 }

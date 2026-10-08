@@ -1,9 +1,22 @@
-# Catálogo de apariencia ARU 0.3.1
+# Catálogo de apariencia ARU 0.7.0
 
-Estos perfiles orientan el discovery; no son prediseños geométricos, imágenes precargadas ni una norma de interfaz. La herramienta investiga el producto, busca referencias visuales propias y escoge el concepto. La función del producto siempre tiene prioridad sobre la decoración.
+Estos 23 perfiles orientan el discovery y la producción por lotes; no son prediseños geométricos, imágenes precargadas ni una norma de interfaz. La herramienta investiga el producto, busca referencias visuales propias y escoge el concepto. La función del producto siempre tiene prioridad sobre la decoración.
 
 | `--style` | Dirección |
 | --- | --- |
+| `material-3` | Material 3 tonal |
+| `material-3-expressive` | Material 3 Expressive |
+| `apple-minimal` | Apple minimalista |
+| `monochrome` | Minimalista monocromático |
+| `outline-rounded` | MusicArt: contorno monocromático, grosor uniforme y remates redondos; controles de 24/32 px |
+| `liquid-glass` | Cristal / Liquid Glass |
+| `futuristic-minimal` | Futurista minimalista |
+| `clay` | Clay / relieve suave |
+| `cyberpunk` | Cyberpunk / neón |
+| `memphis` | Memphis retro |
+| `y2k-chrome` | Y2K cromado |
+| `skeuomorphic` | Esqueumórfico |
+| `pop-cartoon` | Pop / cartoon / slime |
 | `frutiger-aero` | Familia amplia: elegir y declarar una rama sin aqua |
 | `dark-aero` | Negro piano, grafito, vidrio ahumado y bordes luminosos |
 | `frutiger-fruits` | Color cítrico, frescura y superficies pulidas; sin fruta literal obligatoria |
@@ -15,7 +28,7 @@ Estos perfiles orientan el discovery; no son prediseños geométricos, imágenes
 | `skeuomorphic-scifi` | Carcasas, ensamblajes, biseles, materiales y pantallas luminosas |
 | `console-gloss` | Paneles curvos Blades o tarjetas en perspectiva NXE |
 
-`aru styles` devuelve identificadores, alias, materiales, restricciones y fuentes de documentación. Los nombres libres, por ejemplo `Y2K cromado` o `Material 3`, siguen admitidos. Los perfiles Frutiger y console-gloss excluyen escenas submarinas, peces, burbujas acuáticas y gotas como motivo central, por preferencia del proyecto. La translucidez de capas sobre un fondo opaco sigue permitida.
+`aru styles` devuelve identificadores, alias, materiales, restricciones y fuentes de documentación. Los alias `Y2K cromado` y `Material 3` resuelven perfiles del catálogo; siguen admitiéndose nombres libres. En Studio aparecen en Estilo; las recetas de Material son una capa de acabado diferente. Los perfiles Frutiger y console-gloss excluyen escenas submarinas, peces, burbujas acuáticas y gotas como motivo central, por preferencia del proyecto. La translucidez de capas sobre un fondo opaco sigue permitida.
 
 Funky Seasons también aparece como **Four Colors**. No obliga a mezclar los cuatro colores: puede proponer variantes del mismo símbolo. Las variantes no se generan automáticamente como pack. Dark Aero, Aurora, Eco y Fruits son etiquetas comunitarias; Fruits es especialmente informal. DORFic y Frutiger Metro son direcciones relacionadas, no sinónimos de toda la familia Aero. Frutiger Metro no es el dashboard Metro de Xbox.
 

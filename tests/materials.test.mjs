@@ -78,3 +78,13 @@ test('horizontal and vertical strokes remain visible after every material in act
   }
  }
 });
+
+test('bulk palette recolours explicit descendants, retains stroke width, holes, material and exact undo',()=>{
+ const text='canvas 24 24\nbackground none\ngroup pack { stroke #333333 2; fill none; group a { circle rim { at 12 12; radius 8; fill #AABBCC; stroke #112233 2 } line mark { from 8 12; to 16 12; stroke #AA2211 2 } } }';
+ const s=createIllustrator({text,selection:['pack']});
+ s.refine([{op:'palette',target:'selection',color:'#2463EB',accent:'#FFD426',material:'fruits',strength:null}]);
+ const sc=readDocument(s.getDocument().text).scene,ring=sc.byPath.get('pack.a.rim'),mark=sc.byPath.get('pack.a.mark');
+ assert.equal(ring.strokeWidth,2);assert.equal(mark.strokeWidth,2);assert.equal(mark.fill,'none');
+ assert(sc.gradients[ring.fill].stops.some(s=>s.color==='#FFD426'));assert(sc.gradients[ring.stroke].stops.some(s=>s.color==='#2463EB'));
+ s.undo();assert.equal(s.getDocument().text,text);
+});

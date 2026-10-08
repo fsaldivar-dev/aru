@@ -44,10 +44,13 @@ export function tokenize(src) {
       continue;
     }
     if (ch === '"' || ch === "'") {
-      let j = i + 1;
-      while (j < n && src[j] !== ch && src[j] !== '\n') j++;
+      let j = i + 1, value = '';
+      while (j < n && src[j] !== ch && src[j] !== '\n') {
+        if (src[j] === '\\' && (src[j + 1] === ch || src[j + 1] === '\\')) { value += src[j + 1]; j += 2; }
+        else { value += src[j]; j++; }
+      }
       if (src[j] !== ch) throw new AruSyntaxError('Unterminated string', line, col);
-      push('string', src.slice(i + 1, j), j - i + 1);
+      push('string', value, j - i + 1);
       continue;
     }
     if (ch === '.' && src[i + 1] === '.') { push('punct', '..', 2); continue; } // range: 0.08..0.16
